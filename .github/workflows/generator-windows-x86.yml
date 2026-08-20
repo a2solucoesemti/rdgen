@@ -83,7 +83,7 @@ jobs:
           encoded = os.environ["A2_ADMIN_CONFIG_B64" if profile == "admin" else "A2_CLIENT_CONFIG_B64"]
           config = json.loads(base64.b64decode(encoded).decode())
           config["server"] = config["serverIP"]
-          config["filename"] = config["exename"]
+          config["filename"] = f"x86{config['exename']}"
           config["rdgen"] = "a2"
           config["iconlink_url"] = "a2-local"
           with open(os.environ["GITHUB_ENV"], "a") as env_file:
