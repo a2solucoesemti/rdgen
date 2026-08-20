@@ -8,11 +8,14 @@ on:
         required: true
         default: ''
         type: string
-      zip_url:
-        description: 'url to zip of json'
+      profile:
+        description: 'a2 build profile'
         required: true
-        default: ''
-        type: string
+        default: 'client'
+        type: choice
+        options:
+          - client
+          - admin
 
 env:
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
@@ -40,11 +43,6 @@ env:
   SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}"
 
 jobs:
-  setup:
-    uses: ./.github/workflows/fetch-encrypted-secrets.yml
-    with:
-      zip_url_json: ${{ inputs.zip_url }}
-
   generate-bridge:
     uses: ./.github/workflows/bridge.yml
     with:
@@ -53,7 +51,7 @@ jobs:
   build-for-macos:
     name: ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
-    needs: [generate-bridge, setup]
+    needs: [generate-bridge]
     strategy:
       fail-fast: false
       matrix:
@@ -74,20 +72,38 @@ jobs:
               vcpkg-triplet: arm64-osx,
             }
     env:
-      STATUS_URL: "${{ secrets.GENURL }}/updategh"
+      A2_CLIENT_CONFIG_B64: "${{ secrets.A2_CLIENT_CONFIG_B64 }}"
+      A2_ADMIN_CONFIG_B64: "${{ secrets.A2_ADMIN_CONFIG_B64 }}"
+      A2_ICON_BASE64: "${{ secrets.A2_ICON_BASE64 }}"
+      A2_LOGO_BASE64: "${{ secrets.A2_LOGO_BASE64 }}"
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         
-      - uses: actions/download-artifact@v4
-        with:
-          name: encrypted-secrets-zip
-
-      - name: Load Secrets
-        uses: ./.github/actions/decrypt-secrets
-        with:
-          zip_password: ${{ secrets.ZIP_PASSWORD }}
+      - name: Load masked a2 configuration
+        shell: python
+        run: |
+          import base64, json, os
+          profile = "${{ inputs.profile }}"
+          encoded = os.environ["A2_ADMIN_CONFIG_B64" if profile == "admin" else "A2_CLIENT_CONFIG_B64"]
+          config = json.loads(base64.b64decode(encoded).decode())
+          config["server"] = config["serverIP"]
+          config["filename"] = config["exename"]
+          config["rdgen"] = "a2"
+          config["iconlink_url"] = "a2-local"
+          config["logolink_url"] = "a2-local"
+          with open(os.environ["GITHUB_ENV"], "a") as env_file:
+              for key, value in config.items():
+                  if isinstance(value, bool):
+                      value = str(value).lower()
+                  elif value is None:
+                      value = ""
+                  elif not isinstance(value, str):
+                      value = json.dumps(value, separators=(",", ":"))
+                  print(f"::add-mask::{value}")
+                  marker = f"A2_{key}_EOF"
+                  env_file.write(f"{key}<<{marker}\n{value}\n{marker}\n")
 
       - name: Set a2 macOS identity
         shell: bash
@@ -299,11 +315,9 @@ jobs:
           mkdir -p ./macos/Runner/Assets.xcassets/AppIcon.appiconset
           mkdir -p ./rustdesk/data/flutter_assets/assets
 
-          # Download icon using curl with additional SSL options
-          curl -k -L --tlsv1.2 --proto =https --ssl-reqd \
-            -H "User-Agent: Mozilla/5.0" \
-            "${{ env.iconlink_url }}/get_png?filename=${{ env.iconlink_file }}&uuid=${{ env.iconlink_uuid }}" \
-            -o ./res/icon.png || wget --no-check-certificate -O ./res/icon.png "${{ env.iconlink_url }}/get_png?filename=${{ env.iconlink_file }}&uuid=${{ env.iconlink_uuid }}"
+          # Decode the a2 transparent icon stored as an encrypted repository secret.
+          echo "$A2_ICON_BASE64" | base64 --decode > ./res/icon.png
+          test -s ./res/icon.png
             
           # Backup existing files (if they exist)
           [ -f "./res/32x32.png" ] && mv ./res/32x32.png ./res/32x32.png.bak
@@ -586,13 +600,8 @@ jobs:
         run: |
           ASSETS_DIR="build/macos/Build/Products/Release/RustDesk.app/Contents/Frameworks/App.framework/Versions/Current/Resources/flutter_assets/assets"
           mkdir -p "$ASSETS_DIR"
-          curl -k -L --tlsv1.2 --proto =https --ssl-reqd \
-            -H "User-Agent: Mozilla/5.0" \
-            "${{ env.logolink_url }}/get_png?filename=${{ env.logolink_file }}&uuid=${{ env.logolink_uuid }}" \
-            -o "$ASSETS_DIR/logo.png" || \
-          wget --no-check-certificate \
-            -O "$ASSETS_DIR/logo.png" \
-            "${{ env.logolink_url }}/get_png?filename=${{ env.logolink_file }}&uuid=${{ env.logolink_uuid }}"
+          echo "$A2_LOGO_BASE64" | base64 --decode > "$ASSETS_DIR/logo.png"
+          test -s "$ASSETS_DIR/logo.png"
 
       - name: Sign macOS app bundle
         if: env.MACOS_P12_BASE64 != ''
@@ -725,6 +734,14 @@ jobs:
             exit 1
           fi
 
+      - name: Upload a2 DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.filename }}-${{ matrix.job.arch }}
+          path: ${{ env.filename }}-${{ matrix.job.arch }}.dmg
+          if-no-files-found: error
+          retention-days: 7
+
       - name: send file to rdgen server
         if: ${{ env.rdgen == 'true' }}
         shell: bash
@@ -746,14 +763,3 @@ jobs:
             -H "Authorization: Bearer ${{ env.token }}" \
             -F "file=@$GITHUB_WORKSPACE/${{ env.filename }}-${{ matrix.job.arch }}.dmg" \
             "${{ env.apiServer }}/api/save_custom_client"
-
-  cleanup:
-    needs: [build-for-macos]
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    if: always()
-    steps:
-      - name: Delete secrets artifact
-        uses: geekyeggo/delete-artifact@v5
-        with:
-          name: encrypted-secrets-zip
