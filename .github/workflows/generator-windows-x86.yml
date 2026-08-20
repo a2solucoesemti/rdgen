@@ -8,11 +8,14 @@ on:
         required: true
         default: ''
         type: string
-      zip_url:
-        description: 'url to zip of json'
+      profile:
+        description: 'a2 build profile'
         required: true
-        default: ''
-        type: string
+        default: 'client'
+        type: choice
+        options:
+          - client
+          - admin
 
 env:
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
@@ -46,14 +49,8 @@ env:
   STATUS_URL: "${{ secrets.GENURL }}/updategh"
 
 jobs:
-  setup:
-    uses: ./.github/workflows/fetch-encrypted-secrets.yml
-    with:
-      zip_url_json: ${{ inputs.zip_url }}
-
   build-for-windows-sciter:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
-    needs: setup
     runs-on: ${{ matrix.job.os }}
     # Temporarily disable this action due to additional test is needed.
     # if: false
@@ -70,28 +67,40 @@ jobs:
               vcpkg-triplet: x86-windows-static,
             }
           # - { target: aarch64-pc-windows-msvc, os: windows-2022 }
+    env:
+      A2_CLIENT_CONFIG_B64: "${{ secrets.A2_CLIENT_CONFIG_B64 }}"
+      A2_ADMIN_CONFIG_B64: "${{ secrets.A2_ADMIN_CONFIG_B64 }}"
+      A2_ICON_BASE64: "${{ secrets.A2_ICON_BASE64 }}"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         
-      - uses: actions/download-artifact@v4
-        with:
-          name: encrypted-secrets-zip
+      - name: Load masked a2 configuration
+        shell: python
+        run: |
+          import base64, json, os
+          profile = "${{ inputs.profile }}"
+          encoded = os.environ["A2_ADMIN_CONFIG_B64" if profile == "admin" else "A2_CLIENT_CONFIG_B64"]
+          config = json.loads(base64.b64decode(encoded).decode())
+          config["server"] = config["serverIP"]
+          config["filename"] = config["exename"]
+          config["rdgen"] = "a2"
+          config["iconlink_url"] = "a2-local"
+          with open(os.environ["GITHUB_ENV"], "a") as env_file:
+              for key, value in config.items():
+                  if isinstance(value, bool):
+                      value = str(value).lower()
+                  elif value is None:
+                      value = ""
+                  elif not isinstance(value, str):
+                      value = json.dumps(value, separators=(",", ":"))
+                  print(f"::add-mask::{value}")
+                  marker = f"A2_{key}_EOF"
+                  env_file.write(f"{key}<<{marker}\n{value}\n{marker}\n")
 
-      - name: Load Secrets
-        uses: ./.github/actions/decrypt-secrets
-        with:
-          zip_password: ${{ secrets.ZIP_PASSWORD }}
-
-      - name: Finalize and Cleanup zip/json
-        if: always() # Run even if previous steps fail
-        continue-on-error: true
-        uses: fjogeleit/http-request-action@v1
-        with:
-          url: "${{ secrets.GENURL }}/cleanzip"
-          method: 'POST'
-          customHeaders: '{"Content-Type": "application/json"}'
-          data: '{"uuid": "${{ env.uuid }}"}'
+      - name: Preserve a2 Windows x86 UI patch
+        shell: bash
+        run: cp .github/patches/a2WindowsX86Sciter.diff "$RUNNER_TEMP/a2WindowsX86Sciter.diff"
 
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@v6
@@ -124,6 +133,12 @@ jobs:
         with:
           repository: rustdesk/rustdesk
           submodules: recursive
+
+      - name: Apply a2 Windows x86 UI
+        shell: bash
+        run: |
+          git apply --check "$RUNNER_TEMP/a2WindowsX86Sciter.diff"
+          git apply "$RUNNER_TEMP/a2WindowsX86Sciter.diff"
 
       - name: Install ImageMagick on Windows
         run: |
@@ -284,7 +299,7 @@ jobs:
           retry_wait_seconds: 15
           shell: pwsh
           command: |
-            Invoke-WebRequest -Uri ${{ env.iconlink_url }}/get_png?filename=${{ env.iconlink_file }}"&"uuid=${{ env.iconlink_uuid }} -OutFile ./res/icon.png 
+            [IO.File]::WriteAllBytes("./res/icon.png", [Convert]::FromBase64String($env:A2_ICON_BASE64))
             mv ./res/32x32.png ./res/32x32.png.bak
             mv ./res/64x64.png ./res/64x64.png.bak
             mv ./res/128x128.png ./res/128x128.png.bak
@@ -435,6 +450,13 @@ jobs:
         run: |
           mv ./SignOutput/rustdesk.exe "./SignOutput/${{ env.filename }}.exe" || echo "rustdesk"
 
+      - name: Upload branded Windows x86 executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.filename }}-windows-x86
+          path: ./SignOutput/${{ env.filename }}.exe
+          if-no-files-found: error
+
       - name: send file to rdgen server
         if: ${{ env.rdgen == 'true' }}
         shell: bash
@@ -446,14 +468,3 @@ jobs:
         shell: bash
         run: |
           curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ env.token }}" -F "file=@./SignOutput/${{ env.filename }}.exe" ${{ env.apiServer }}/api/save_custom_client
-
-  cleanup:
-    needs: [build-for-windows-sciter]
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    if: always()
-    steps:
-      - name: Delete secrets artifact
-        uses: geekyeggo/delete-artifact@v5
-        with:
-          name: encrypted-secrets-zip
