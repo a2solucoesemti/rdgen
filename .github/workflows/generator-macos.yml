@@ -167,7 +167,8 @@ jobs:
          
           # MACSTUFF Update Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleName ${{ env.appname }}" ./flutter/macos/Runner/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ env.appname }}" ./flutter/macos/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ env.appname }}" ./flutter/macos/Runner/Info.plist || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ${{ env.appname }}" ./flutter/macos/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${{ env.BUNDLE_ID }}" ./flutter/macos/Runner/Info.plist
           # sed -i '' '/<key>NSHumanReadableCopyright<\/key>/{n;s/<string>.*<\/string>/<string>Copyright 2025 ${{ env.appname }}. All rights reserved.<\/string>/;}' ./flutter/macos/Runner/Info.plist
           
@@ -543,7 +544,8 @@ jobs:
           INFO_PLIST="$APP_PATH/Contents/Info.plist"
           test -f "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleName ${{ env.appname }}" "$INFO_PLIST"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ env.appname }}" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ env.appname }}" "$INFO_PLIST" || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ${{ env.appname }}" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${{ env.BUNDLE_ID }}" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright Desenvolvido por a2" "$INFO_PLIST" || \
             /usr/libexec/PlistBuddy -c "Add :NSHumanReadableCopyright string Desenvolvido por a2" "$INFO_PLIST"
