@@ -1,0 +1,47 @@
+diff --git a/src/ui/index.css b/src/ui/index.css
+--- a/src/ui/index.css
++++ b/src/ui/index.css
+@@ -337,8 +337,8 @@ svg#edit {
+ }
+ 
+ div.install-me, div.trust-me {
+     margin-top: 0.5em;
+     padding: 20px;
+-    color: white;
+-    background: linear-gradient(left,#e242bc,#f4727c);
++    color: #22c55e;
++    background: #000000;
+ }
+@@ -397,14 +397,15 @@ div.trust-me > div:nth-child(3) {
+ }
+ 
+ .install-me .button {
+     height: 2em;
+     line-height: 2em;
+     text-align: center;
+     font-weight: bold;
+     font-size: 1em;
+     margin-top: 1em;
+-    border-color: white;
++    border-color: #22c55e;
+     border: 1px;
+-    background: none;
+-    color: white;
++    background: #000000;
++    color: #22c55e;
++    border-radius: 0.5em;
+ }
+diff --git a/src/ui/index.tis b/src/ui/index.tis
+--- a/src/ui/index.tis
++++ b/src/ui/index.tis
+@@ -771,9 +771,7 @@ class App: Reactor.Component {
+ 
+ class InstallMe: Reactor.Component {
+     function render() {
+         return <div .install-me>
+-            <span />
+-            <div>{translate('install_tip')}</div>
+-            <div><button #install-me .button>{translate('Install')}</button></div>
++            <div><button #install-me .button>{translate('Install')}</button></div>
+         </div>;
+     }
