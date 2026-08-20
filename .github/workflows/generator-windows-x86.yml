@@ -8,14 +8,6 @@ on:
         required: true
         default: ''
         type: string
-      profile:
-        description: 'a2 build profile'
-        required: true
-        default: 'client'
-        type: choice
-        options:
-          - client
-          - admin
 
 env:
   SCITER_RUST_VERSION: "1.75" # https://github.com/rustdesk/rustdesk/discussions/7503, also 1.78 has ABI change which causes our sciter version not working, https://blog.rust-lang.org/2024/03/30/i128-layout-update.html
@@ -69,7 +61,6 @@ jobs:
           # - { target: aarch64-pc-windows-msvc, os: windows-2022 }
     env:
       A2_CLIENT_CONFIG_B64: "${{ secrets.A2_CLIENT_CONFIG_B64 }}"
-      A2_ADMIN_CONFIG_B64: "${{ secrets.A2_ADMIN_CONFIG_B64 }}"
       A2_ICON_BASE64: "${{ secrets.A2_ICON_BASE64 }}"
     steps:
       - name: Checkout Repository
@@ -79,11 +70,10 @@ jobs:
         shell: python
         run: |
           import base64, json, os
-          profile = "${{ inputs.profile }}"
-          encoded = os.environ["A2_ADMIN_CONFIG_B64" if profile == "admin" else "A2_CLIENT_CONFIG_B64"]
+          encoded = os.environ["A2_CLIENT_CONFIG_B64"]
           config = json.loads(base64.b64decode(encoded).decode())
           config["server"] = config["serverIP"]
-          config["filename"] = f"x86{config['exename']}"
+          config["filename"] = f"{config['exename']}_x86"
           config["rdgen"] = "a2"
           config["iconlink_url"] = "a2-local"
           with open(os.environ["GITHUB_ENV"], "a") as env_file:
