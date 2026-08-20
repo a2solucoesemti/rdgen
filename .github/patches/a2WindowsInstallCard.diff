@@ -1,0 +1,70 @@
+diff --git a/flutter/lib/desktop/pages/desktop_home_page.dart b/flutter/lib/desktop/pages/desktop_home_page.dart
+--- a/flutter/lib/desktop/pages/desktop_home_page.dart
++++ b/flutter/lib/desktop/pages/desktop_home_page.dart
+@@ -462,11 +462,9 @@
+     if (isWindows && !bind.isDisableInstallation()) {
+       if (!bind.mainIsInstalled()) {
+-        return buildInstallCard(
+-            "", bind.isOutgoingOnly() ? "" : "install_tip", "Install",
+-            () async {
++        return buildInstallCard("", "", "Install", () async {
+           await rustDeskWinManager.closeAllSubWindows();
+           bind.mainGotoInstall();
+-        });
++        }, a2Install: true);
+       } else if (bind.mainIsInstalledLowerVersion()) {
+         return buildInstallCard(
+             "Status", "Your installation is lower version.", "Click to upgrade",
+@@ -579,7 +577,8 @@
+       String? help,
+       String? link,
+       bool? closeButton,
+-      String? closeOption}) {
++      String? closeOption,
++      bool a2Install = false}) {
+     if (bind.mainGetBuildinOption(key: kOptionHideHelpCards) == 'Y' &&
+         content != 'install_daemon_tip') {
+       return const SizedBox();
+@@ -608,16 +607,18 @@
+           margin: EdgeInsets.fromLTRB(
+               0, marginTop, 0, bind.isIncomingOnly() ? marginTop : 0),
+           child: Container(
+-              decoration: BoxDecoration(
+-                  gradient: LinearGradient(
+-                begin: Alignment.centerLeft,
+-                end: Alignment.centerRight,
+-                colors: [
+-                  Color.fromARGB(255, 226, 66, 188),
+-                  Color.fromARGB(255, 244, 114, 124),
+-                ],
+-              )),
+-              padding: EdgeInsets.all(20),
++              decoration: BoxDecoration(
++                color: a2Install ? const Color.fromARGB(255, 10, 10, 10) : null,
++                gradient: a2Install ? null : const LinearGradient(
++                  begin: Alignment.centerLeft,
++                  end: Alignment.centerRight,
++                  colors: [
++                    Color.fromARGB(255, 226, 66, 188),
++                    Color.fromARGB(255, 244, 114, 124),
++                  ],
++                ),
++              ),
++              padding: EdgeInsets.all(a2Install ? 16 : 20),
+               child: Column(
+                   mainAxisAlignment: MainAxisAlignment.start,
+                   crossAxisAlignment: CrossAxisAlignment.start,
+@@ -660,7 +661,11 @@
+                                       isOutline: true,
+                                       text: translate(btnText),
+-                                      textColor: Colors.white,
+-                                      borderColor: Colors.white,
++                                      textColor: a2Install
++                                          ? const Color.fromARGB(255, 34, 197, 94)
++                                          : Colors.white,
++                                      borderColor: a2Install
++                                          ? const Color.fromARGB(255, 34, 197, 94)
++                                          : Colors.white,
+                                       textSize: 20,
+                                       radius: 10,
+                                       onTap: onPressed,
