@@ -89,6 +89,15 @@ jobs:
         with:
           zip_password: ${{ secrets.ZIP_PASSWORD }}
 
+      - name: Set a2 macOS identity
+        shell: bash
+        run: |
+          if [ "${{ env.appname }}" = "ConnectAdmin" ]; then
+            echo "BUNDLE_ID=br.com.a2ti.connectadmin" >> "$GITHUB_ENV"
+          else
+            echo "BUNDLE_ID=br.com.a2ti.connect" >> "$GITHUB_ENV"
+          fi
+
       - name: Finalize and Cleanup zip/json
         if: always() # Run even if previous steps fail
         continue-on-error: true
@@ -137,14 +146,14 @@ jobs:
           cp ./flutter/macos/Runner/Configs/AppInfo.xcconfig ./flutter/macos/Runner/Configs/AppInfo.xcconfig.bak
          
           # MACSTUFF Update Info.plist
-          sed -i '' -e 's|<key>CFBundleName</key>.*<string>.*</string>|<key>CFBundleName</key>\n\t<string>${{ env.appname }}</string>|' ./flutter/macos/Runner/Info.plist
-          sed -i '' -e 's|<key>CFBundleDisplayName</key>.*<string>.*</string>|<key>CFBundleDisplayName</key>\n\t<string>${{ env.appname }}</string>|' ./flutter/macos/Runner/Info.plist
-          sed -i '' -e 's|<key>CFBundleIdentifier</key>.*<string>.*</string>|<key>CFBundleIdentifier</key>\n\t<string>com.${{ env.appname }}.app</string>|' ./flutter/macos/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleName ${{ env.appname }}" ./flutter/macos/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ env.appname }}" ./flutter/macos/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${{ env.BUNDLE_ID }}" ./flutter/macos/Runner/Info.plist
           # sed -i '' '/<key>NSHumanReadableCopyright<\/key>/{n;s/<string>.*<\/string>/<string>Copyright 2025 ${{ env.appname }}. All rights reserved.<\/string>/;}' ./flutter/macos/Runner/Info.plist
           
           # MACSTUFF Update AppInfo.xcconfig
           sed -i '' -e 's|PRODUCT_NAME = .*|PRODUCT_NAME = ${{ env.appname }}|' ./flutter/macos/Runner/Configs/AppInfo.xcconfig
-          sed -i '' -e 's|PRODUCT_BUNDLE_IDENTIFIER = .*|PRODUCT_BUNDLE_IDENTIFIER = com.${{ env.appname }}.app|' ./flutter/macos/Runner/Configs/AppInfo.xcconfig
+          sed -i '' -e 's|PRODUCT_BUNDLE_IDENTIFIER = .*|PRODUCT_BUNDLE_IDENTIFIER = ${{ env.BUNDLE_ID }}|' ./flutter/macos/Runner/Configs/AppInfo.xcconfig
           sed -i '' -e 's|Purslane Tech Pte. Ltd.|${{ env.compname }}|' ./flutter/macos/Runner/Configs/AppInfo.xcconfig
           sed -i '' -e 's|Purslane Ltd.|${{ env.compname }}|' ./flutter/macos/Runner/Configs/AppInfo.xcconfig
           # Keep DEVELOPMENT_TEAM if it exists, don't blank it out
@@ -160,7 +169,7 @@ jobs:
           
           # Update Xcode project settings
           sed -i '' -e 's/PRODUCT_NAME = "RustDesk"/PRODUCT_NAME = "${{ env.appname }}"/' ./flutter/macos/Runner.xcodeproj/project.pbxproj
-          sed -i '' -e 's/PRODUCT_BUNDLE_IDENTIFIER = ".*"/PRODUCT_BUNDLE_IDENTIFIER = "com.${{ env.appname }}.app"/' ./flutter/macos/Runner.xcodeproj/project.pbxproj
+          sed -i '' -e 's/PRODUCT_BUNDLE_IDENTIFIER = ".*"/PRODUCT_BUNDLE_IDENTIFIER = "${{ env.BUNDLE_ID }}"/' ./flutter/macos/Runner.xcodeproj/project.pbxproj
           # Don't modify DEVELOPMENT_TEAM in project.pbxproj
 
           # Update CMake settings
@@ -495,6 +504,30 @@ jobs:
           fi
           sed -i -e "s/RustDesk.app/\"${{ env.appname }}.app\"/" build.py
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
+
+      - name: Finalize and validate a2 macOS identity
+        shell: bash
+        run: |
+          APP_PATH="flutter/build/macos/Build/Products/Release/${{ env.appname }}.app"
+          if [ ! -d "$APP_PATH" ]; then
+            APP_PATH="flutter/build/macos/Build/Products/Release/RustDesk.app"
+          fi
+          if [ ! -d "$APP_PATH" ]; then
+            APP_PATH="build/macos/Build/Products/Release/${{ env.appname }}.app"
+          fi
+          if [ ! -d "$APP_PATH" ]; then
+            APP_PATH="build/macos/Build/Products/Release/RustDesk.app"
+          fi
+          INFO_PLIST="$APP_PATH/Contents/Info.plist"
+          test -f "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleName ${{ env.appname }}" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ env.appname }}" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${{ env.BUNDLE_ID }}" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright Desenvolvido por a2" "$INFO_PLIST" || \
+            /usr/libexec/PlistBuddy -c "Add :NSHumanReadableCopyright string Desenvolvido por a2" "$INFO_PLIST"
+          ACTUAL_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$INFO_PLIST")
+          test "$ACTUAL_ID" = "${{ env.BUNDLE_ID }}"
+          echo "Identidade macOS validada: $ACTUAL_ID"
 
       # - name: Copy service file
       #   run: |
