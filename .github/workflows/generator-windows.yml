@@ -8,11 +8,14 @@ on:
         required: true
         default: ''
         type: string
-      zip_url:
-        description: 'url to zip of json'
+      profile:
+        description: 'a2 build profile'
         required: true
-        default: ''
-        type: string
+        default: 'client'
+        type: choice
+        options:
+          - client
+          - admin
 
 
 env:
@@ -42,18 +45,12 @@ env:
 
 
 jobs:
-  setup:
-    uses: ./.github/workflows/fetch-encrypted-secrets.yml
-    with:
-      zip_url_json: ${{ inputs.zip_url }}
-
   generate-bridge:
     uses: ./.github/workflows/bridge.yml
     with:
       version: ${{ inputs.version }}
 
   build-RustDeskTempTopMostWindow:
-    needs: setup
     uses: ./.github/workflows/third-party-RustDeskTempTopMostWindow.yml
     with:
       upload-artifact: true
@@ -67,7 +64,7 @@ jobs:
 
   build-for-windows-flutter:
     name: Build Windows
-    needs: [build-RustDeskTempTopMostWindow, generate-bridge, setup]
+    needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -82,28 +79,38 @@ jobs:
               vcpkg-triplet: x64-windows-static,
             }
           # - { target: aarch64-pc-windows-msvc, os: windows-2022, arch: aarch64 }
+    env:
+      A2_CLIENT_CONFIG_B64: "${{ secrets.A2_CLIENT_CONFIG_B64 }}"
+      A2_ADMIN_CONFIG_B64: "${{ secrets.A2_ADMIN_CONFIG_B64 }}"
+      A2_ICON_BASE64: "${{ secrets.A2_ICON_BASE64 }}"
+      A2_LOGO_BASE64: "${{ secrets.A2_LOGO_BASE64 }}"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         
-      - uses: actions/download-artifact@v4
-        with:
-          name: encrypted-secrets-zip
-
-      - name: Load Secrets
-        uses: ./.github/actions/decrypt-secrets
-        with:
-          zip_password: ${{ secrets.ZIP_PASSWORD }}
-
-      - name: Finalize and Cleanup zip/json
-        if: always() # Run even if previous steps fail
-        continue-on-error: true
-        uses: fjogeleit/http-request-action@v1
-        with:
-          url: "${{ secrets.GENURL }}/cleanzip"
-          method: 'POST'
-          customHeaders: '{"Content-Type": "application/json"}'
-          data: '{"uuid": "${{ env.uuid }}"}'
+      - name: Load masked a2 configuration
+        shell: python
+        run: |
+          import base64, json, os
+          profile = "${{ inputs.profile }}"
+          encoded = os.environ["A2_ADMIN_CONFIG_B64" if profile == "admin" else "A2_CLIENT_CONFIG_B64"]
+          config = json.loads(base64.b64decode(encoded).decode())
+          config["server"] = config["serverIP"]
+          config["filename"] = config["exename"]
+          config["rdgen"] = "a2"
+          config["iconlink_url"] = "a2-local"
+          config["logolink_url"] = "a2-local"
+          with open(os.environ["GITHUB_ENV"], "a") as env_file:
+              for key, value in config.items():
+                  if isinstance(value, bool):
+                      value = str(value).lower()
+                  elif value is None:
+                      value = ""
+                  elif not isinstance(value, str):
+                      value = json.dumps(value, separators=(",", ":"))
+                  print(f"::add-mask::{value}")
+                  marker = f"A2_{key}_EOF"
+                  env_file.write(f"{key}<<{marker}\n{value}\n{marker}\n")
 
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@v6
@@ -111,6 +118,10 @@ jobs:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Preserve a2 Windows UI patch
+        shell: bash
+        run: cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
       
       - name: Set rdgen value
         if: ${{ env.rdgen == 'true' }}
@@ -349,7 +360,7 @@ jobs:
           retry_wait_seconds: 15
           shell: pwsh
           command: |
-            Invoke-WebRequest -Uri ${{ env.iconlink_url }}/get_png?filename=${{ env.iconlink_file }}"&"uuid=${{ env.iconlink_uuid }} -OutFile ./res/iconx.png 
+            [IO.File]::WriteAllBytes("./res/iconx.png", [Convert]::FromBase64String($env:A2_ICON_BASE64))
             mv ./res/icon.ico ./res/icon.ico.bak
             mv ./res/icon.png ./res/icon.png.bak
             mv ./res/tray-icon.ico ./res/tray-icon.ico.bak
@@ -403,6 +414,10 @@ jobs:
         run: | 
           sed -i -e 's|updateUrl.isNotEmpty|false|' ./flutter/lib/desktop/pages/desktop_home_page.dart
           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
+
+      - name: Apply a2 Windows install card
+        shell: bash
+        run: git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
 
       # - name: run as admin
       #   continue-on-error: true
@@ -481,7 +496,7 @@ jobs:
           shell: pwsh
           continue_on_error: true
           command: |
-            Invoke-WebRequest -Uri ${{ env.logolink_url }}/get_png?filename=${{ env.logolink_file }}"&"uuid=${{ env.logolink_uuid }} -OutFile ./rustdesk/data/flutter_assets/assets/logo.png
+            [IO.File]::WriteAllBytes("./rustdesk/data/flutter_assets/assets/logo.png", [Convert]::FromBase64String($env:A2_LOGO_BASE64))
 
       - name: find Runner.res
         # Windows: find Runner.res (compiled from ./flutter/windows/runner/Runner.rc), copy to ./Runner.res
@@ -606,6 +621,16 @@ jobs:
         run: |
           mv ./SignOutput/rustdesk.msi "./SignOutput/${{ env.filename }}.msi" || echo "rustdesk"
 
+      - name: Upload a2 Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.filename }}-windows
+          path: |
+            ./SignOutput/${{ env.filename }}.exe
+            ./SignOutput/${{ env.filename }}.msi
+          if-no-files-found: error
+          retention-days: 7
+
       - name: send file to rdgen server
         if: ${{ env.rdgen == 'true' }}
         uses: nick-fields/retry@v3
@@ -629,14 +654,3 @@ jobs:
           command: |
             curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ env.token }}" -F "file=@./SignOutput/${{ env.filename }}.exe" ${{ env.apiServer }}/api/save_custom_client
             curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ env.token }}" -F "file=@./SignOutput/${{ env.filename }}.msi" ${{ env.apiServer }}/api/save_custom_client || true
-
-  cleanup:
-    needs: [build-for-windows-flutter]
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    if: always()
-    steps:
-      - name: Delete secrets artifact
-        uses: geekyeggo/delete-artifact@v5
-        with:
-          name: encrypted-secrets-zip
