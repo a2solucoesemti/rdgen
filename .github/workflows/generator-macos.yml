@@ -536,15 +536,29 @@ jobs:
           fi
           INFO_PLIST="$APP_PATH/Contents/Info.plist"
           test -f "$INFO_PLIST"
+          CURRENT_EXEC=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$INFO_PLIST")
+          CURRENT_EXEC_PATH="$APP_PATH/Contents/MacOS/$CURRENT_EXEC"
+          BRANDED_EXEC_PATH="$APP_PATH/Contents/MacOS/${{ env.appname }}"
+          if [ "$CURRENT_EXEC" != "${{ env.appname }}" ]; then
+            test -f "$CURRENT_EXEC_PATH"
+            mv "$CURRENT_EXEC_PATH" "$BRANDED_EXEC_PATH"
+          fi
+          chmod +x "$BRANDED_EXEC_PATH"
           /usr/libexec/PlistBuddy -c "Set :CFBundleName ${{ env.appname }}" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ env.appname }}" "$INFO_PLIST" || \
             /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ${{ env.appname }}" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable ${{ env.appname }}" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${{ env.BUNDLE_ID }}" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright Desenvolvido por a2" "$INFO_PLIST" || \
             /usr/libexec/PlistBuddy -c "Add :NSHumanReadableCopyright string Desenvolvido por a2" "$INFO_PLIST"
           ACTUAL_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$INFO_PLIST")
+          ACTUAL_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleName" "$INFO_PLIST")
+          ACTUAL_EXEC=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$INFO_PLIST")
           test "$ACTUAL_ID" = "${{ env.BUNDLE_ID }}"
-          echo "Identidade macOS validada: $ACTUAL_ID"
+          test "$ACTUAL_NAME" = "${{ env.appname }}"
+          test "$ACTUAL_EXEC" = "${{ env.appname }}"
+          test -x "$BRANDED_EXEC_PATH"
+          echo "Identidade macOS validada: $ACTUAL_NAME ($ACTUAL_ID), executável $ACTUAL_EXEC"
 
       # - name: Copy service file
       #   run: |
