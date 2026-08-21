@@ -57,13 +57,6 @@ jobs:
       matrix:
         job:
           - {
-              target: x86_64-apple-darwin,
-              os: macos-15-intel, #macos-latest or macos-14 use M1 now, https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#:~:text=14%20GB-,macos%2Dlatest%20or%20macos%2D14,-The%20macos%2Dlatestlabel
-              extra-build-args: "",
-              arch: x86_64,
-              vcpkg-triplet: x64-osx,
-            }
-          - {
               target: aarch64-apple-darwin,
               os: macos-14,
               # extra-build-args: "--disable-flutter-texture-render", # disable this for mac, because we see a lot of users reporting flickering both on arm and x64, and we can not confirm if texture rendering has better performance if htere is no vram, https://github.com/rustdesk/rustdesk/issues/6296
@@ -131,9 +124,9 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
-      - name: Preserve a2 desktop card patch
+      - name: Preserve a2 macOS install card customizer
         shell: bash
-        run: cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+        run: cp .github/patches/apply_a2_macos_install_card.py "$RUNNER_TEMP/apply_a2_macos_install_card.py"
 
       - name: Checkout source code
         if: ${{ env.VERSION != 'master' }}
@@ -480,9 +473,9 @@ jobs:
           sed -i -e 's|updateUrl.isNotEmpty|false|' ./flutter/lib/desktop/pages/desktop_home_page.dart
           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
 
-      - name: Apply a2 desktop card colors
-        shell: bash
-        run: git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+      - name: Apply neutral a2 macOS install action
+        shell: python
+        run: exec(open(r"${{ runner.temp }}/apply_a2_macos_install_card.py", encoding="utf-8").read())
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
