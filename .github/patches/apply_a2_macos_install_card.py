@@ -22,7 +22,7 @@ replacements = (
                   Color.fromARGB(255, 244, 114, 124),
                 ],
               )),
-              padding: EdgeInsets.all(20),''', '''              decoration: const BoxDecoration(color: MyTheme.button),
+              padding: EdgeInsets.all(20),''', '''              decoration: const BoxDecoration(color: Color(0xFFE0E0E0)),
               padding: EdgeInsets.all(20),'''),
     ('''                                      isOutline: true,
                                       text: translate(btnText),
@@ -40,6 +40,22 @@ replacements = (
     ('''                                            color: Colors.white,
                                             fontSize: 12),''', '''                                            color: Colors.black,
                                             fontSize: 12),'''),
+    ('''          Container(
+            width: 2,
+            decoration: const BoxDecoration(color: MyTheme.accent),
+          ).marginOnly(top: 5),''', '''          Container(
+            width: 2,
+            decoration: const BoxDecoration(color: Color(0xFF22C55E)),
+          ).marginOnly(top: 5),'''),
+    ('''          Container(
+            width: 2,
+            height: 52,
+            decoration: BoxDecoration(color: MyTheme.accent),
+          ),''', '''          Container(
+            width: 2,
+            height: 52,
+            decoration: const BoxDecoration(color: Color(0xFF22C55E)),
+          ),'''),
 )
 
 for original, branded in replacements:
