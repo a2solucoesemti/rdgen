@@ -4,6 +4,8 @@ path = Path("flutter/lib/desktop/pages/desktop_home_page.dart")
 source = path.read_text(encoding="utf-8")
 
 replacements = (
+    ('''    } else if (isMacOS) {''',
+     '''    } else if (isMacOS && bind.mainGetAppNameSync() != "ConnectAdmin") {'''),
     ('''        return buildInstallCard(
             "", bind.isOutgoingOnly() ? "" : "install_tip", "Install",
             () async {
