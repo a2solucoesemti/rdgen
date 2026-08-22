@@ -12,11 +12,7 @@ replacements = (
         });''', '''        return buildInstallCard("", "", "Install", () async {
           await rustDeskWinManager.closeAllSubWindows();
           bind.mainGotoInstall();
-        }, a2Install: true);'''),
-    ('''      bool? closeButton,
-      String? closeOption}) {''', '''      bool? closeButton,
-      String? closeOption,
-      bool a2Install = false}) {'''),
+        });'''),
     ('''              decoration: BoxDecoration(
                   gradient: LinearGradient(
                 begin: Alignment.centerLeft,
@@ -26,25 +22,24 @@ replacements = (
                   Color.fromARGB(255, 244, 114, 124),
                 ],
               )),
-              padding: EdgeInsets.all(20),''', '''              decoration: a2Install
-                  ? null
-                  : BoxDecoration(
-                      gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Color.fromARGB(255, 226, 66, 188),
-                        Color.fromARGB(255, 244, 114, 124),
-                      ],
-                    )),
-              padding: EdgeInsets.all(a2Install ? 0 : 20),'''),
+              padding: EdgeInsets.all(20),''', '''              decoration: const BoxDecoration(color: MyTheme.button),
+              padding: EdgeInsets.all(20),'''),
     ('''                                      isOutline: true,
                                       text: translate(btnText),
                                       textColor: Colors.white,
                                       borderColor: Colors.white,''', '''                                      isOutline: true,
                                       text: translate(btnText),
-                                      textColor: a2Install ? Colors.black : Colors.white,
-                                      borderColor: a2Install ? Colors.transparent : Colors.white,'''),
+                                      textColor: Colors.black,
+                                      borderColor: Colors.black,'''),
+    ('''                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,''', '''                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,'''),
+    ('''                                color: Colors.white,
+                                fontWeight: FontWeight.normal,''', '''                                color: Colors.black,
+                                fontWeight: FontWeight.normal,'''),
+    ('''                                            color: Colors.white,
+                                            fontSize: 12),''', '''                                            color: Colors.black,
+                                            fontSize: 12),'''),
 )
 
 for original, branded in replacements:
