@@ -326,15 +326,9 @@ jobs:
           echo "$A2_ICON_BASE64" | base64 --decode > ./res/icon.png
           test -s ./res/icon.png
 
-          # macOS icons must not fill the entire 1024x1024 canvas. Build a
-          # rounded, inset variant for Finder/Dock while keeping icon.png for
-          # the in-app branding and tray assets.
-          magick ./res/icon.png -resize 824x824! /tmp/a2-macos-icon-source.png
-          magick -size 824x824 xc:none -fill white \
-            -draw "roundrectangle 0,0 823,823 180,180" /tmp/a2-macos-icon-mask.png
-          magick /tmp/a2-macos-icon-source.png /tmp/a2-macos-icon-mask.png \
-            -alpha off -compose CopyOpacity -composite \
-            -gravity center -background none -extent 1024x1024 ./res/app-icon-macos.png
+          # Preserve the complete branded artwork. Extra masking or padding
+          # makes recent macOS versions wrap it in a second grey icon shape.
+          magick ./res/icon.png -resize 1024x1024! ./res/app-icon-macos.png
           test -s ./res/app-icon-macos.png
             
           # Backup existing files (if they exist)
