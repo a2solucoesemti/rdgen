@@ -33,17 +33,8 @@ common_source = common_path.read_text(encoding="utf-8")
 start = common_source.index("Widget loadPowered(BuildContext context) {")
 end = common_source.index("\n\nconst _kDefaultLogoAsset", start)
 clean_footer = '''Widget loadPowered(BuildContext context) {
-  if (bind.mainGetBuildinOption(key: "hide-powered-by-me") == 'Y') {
-    return const SizedBox.shrink();
-  }
-  return Opacity(
-    opacity: 0.55,
-    child: Text(
-      translate("powered_by_me"),
-      overflow: TextOverflow.clip,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 9),
-    ),
-  ).marginOnly(top: 6);
+  // a2 branded clients intentionally have no vendor caption above the logo.
+  return const SizedBox.shrink();
 }'''
 common_source = common_source[:start] + clean_footer + common_source[end:]
 common_path.write_text(common_source, encoding="utf-8")
