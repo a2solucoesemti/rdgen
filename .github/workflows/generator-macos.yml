@@ -136,6 +136,7 @@ jobs:
         run: |
           cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
           cp .github/patches/a2_common_branding.py "$RUNNER_TEMP/a2_common_branding.py"
+          cp .github/patches/a2_macos_branding.py "$RUNNER_TEMP/a2_macos_branding.py"
 
       - name: Checkout source code
         if: ${{ env.VERSION != 'master' }}
@@ -328,7 +329,8 @@ jobs:
 
           # Preserve the complete branded artwork. Extra masking or padding
           # makes recent macOS versions wrap it in a second grey icon shape.
-          magick ./res/icon.png -resize 1024x1024! ./res/app-icon-macos.png
+          magick ./res/icon.png -background black -alpha remove -alpha off \
+            -resize 1024x1024! ./res/app-icon-macos.png
           test -s ./res/app-icon-macos.png
             
           # Backup existing files (if they exist)
@@ -492,6 +494,7 @@ jobs:
         run: |
           python "$RUNNER_TEMP/a2_common_branding.py"
           git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+          python "$RUNNER_TEMP/a2_macos_branding.py"
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
