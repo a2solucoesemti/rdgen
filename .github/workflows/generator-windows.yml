@@ -26,6 +26,7 @@ env:
   SCITER_NASM_DEBVERSION: "2.15.05-1"
   LLVM_VERSION: "15.0.6"
   FLUTTER_VERSION: "3.24.5"
+  FLUTTER_WINDOWS_ARM_VERSION: "3.44.8"
   ANDROID_FLUTTER_VERSION: "3.24.5" 
   # for arm64 linux because official Dart SDK does not work
   FLUTTER_ELINUX_VERSION: "3.16.9"
@@ -52,11 +53,17 @@ jobs:
 
   build-RustDeskTempTopMostWindow:
     uses: ./.github/workflows/third-party-RustDeskTempTopMostWindow.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { target: windows-2022, platform: x64 }
+          - { target: windows-11-arm, platform: ARM64 }
     with:
       upload-artifact: true
-      target: windows-2022
+      target: ${{ matrix.job.target }}
       configuration: Release
-      platform: x64
+      platform: ${{ matrix.job.platform }}
       target_version: Windows10
     secrets: inherit
     strategy:
@@ -76,9 +83,18 @@ jobs:
               target: x86_64-pc-windows-msvc,
               os: windows-2022,
               arch: x86_64,
+              flutter-arch: x64,
               vcpkg-triplet: x64-windows-static,
+              build-args: "--vram",
             }
-          # - { target: aarch64-pc-windows-msvc, os: windows-2022, arch: aarch64 }
+          - {
+              target: aarch64-pc-windows-msvc,
+              os: windows-11-arm,
+              arch: aarch64,
+              flutter-arch: arm64,
+              vcpkg-triplet: arm64-windows-static,
+              build-args: "",
+            }
     env:
       A2_CLIENT_CONFIG_B64: "${{ secrets.A2_CLIENT_CONFIG_B64 }}"
       A2_ADMIN_CONFIG_B64: "${{ secrets.A2_ADMIN_CONFIG_B64 }}"
@@ -95,6 +111,12 @@ jobs:
           profile = "${{ inputs.profile }}"
           encoded = os.environ["A2_ADMIN_CONFIG_B64" if profile == "admin" else "A2_CLIENT_CONFIG_B64"]
           config = json.loads(base64.b64decode(encoded).decode())
+          if profile == "admin":
+              config["appname"] = "ConnectAdmin"
+              config["exename"] = "ConnectAdmin"
+              config["custom"] = base64.b64encode(json.dumps({
+                  "conn-type": "outgoing"
+              }, separators=(",", ":")).encode()).decode()
           config["server"] = config["serverIP"]
           config["filename"] = config["exename"]
           config["rdgen"] = "a2"
@@ -122,8 +144,7 @@ jobs:
       - name: Preserve a2 Windows UI patch
         shell: bash
         run: |
-          cp .github/patches/a2_windows_install_card.py "$RUNNER_TEMP/a2_windows_install_card.py"
-          cp .github/patches/a2_common_branding.py "$RUNNER_TEMP/a2_common_branding.py"
+          cp .github/patches/a2_connectadmin.py "$RUNNER_TEMP/a2_connectadmin.py"
       
       - name: Set rdgen value
         if: ${{ env.rdgen == 'true' }}
@@ -151,9 +172,9 @@ jobs:
           submodules: recursive
 
       - name: Restore bridge files
-        uses: actions/download-artifact@master
+        uses: actions/download-artifact@v4
         with:
-          name: bridge-artifact
+          name: ${{ matrix.job.arch == 'aarch64' && 'bridge-artifact-flutter-3.44' || 'bridge-artifact' }}
           path: ./
 
       - name: Install ImageMagick on Windows
@@ -294,13 +315,32 @@ jobs:
           version: ${{ env.LLVM_VERSION }}
 
       - name: Install flutter
-        uses: subosito/flutter-action@v2.12.0 #https://github.com/subosito/flutter-action/issues/277
+        id: flutter
+        uses: subosito/flutter-action@v2.12.0
         with:
           channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version: ${{ matrix.job.arch == 'aarch64' && env.FLUTTER_WINDOWS_ARM_VERSION || env.FLUTTER_VERSION }}
+          architecture: x64
+
+      - name: Force ARM64 Dart SDK and engine
+        if: ${{ matrix.job.arch == 'aarch64' }}
+        run: |
+          $flutterRoot = "${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          Remove-Item -Force "$flutterRoot\bin\cache\engine-dart-sdk.stamp" -ErrorAction SilentlyContinue
+          & "$flutterRoot\bin\internal\update_dart_sdk.ps1"
+          $dartVer = & "$flutterRoot\bin\dart.bat" --version 2>&1 | Out-String
+          Write-Host $dartVer
+          if ($dartVer -notmatch "windows_arm64") { throw "Expected Windows ARM64 Dart SDK" }
+          & "$flutterRoot\bin\flutter.bat" precache --windows
+
+      - name: Patch RustDesk for Flutter 3.44 on ARM64
+        if: ${{ matrix.job.arch == 'aarch64' }}
+        shell: bash
+        run: bash .github/patches/apply_flutter_3.44_source_patches.sh
 
       # https://github.com/flutter/flutter/issues/155685
       - name: Replace engine with rustdesk custom flutter engine
+        if: ${{ matrix.job.arch == 'x86_64' }}
         run: |
           flutter doctor -v
           flutter precache --windows
@@ -309,6 +349,7 @@ jobs:
           mv -Force windows-x64-release/*  C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/
 
       - name: Patch flutter
+        if: ${{ matrix.job.arch == 'x86_64' }}
         shell: bash
         run: |
           cp .github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff $(dirname $(dirname $(which flutter)))
@@ -352,6 +393,11 @@ jobs:
           fi
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
         shell: bash
+
+      - name: Set SODIUM_LIB_DIR for ARM64
+        if: ${{ matrix.job.arch == 'aarch64' }}
+        shell: bash
+        run: echo "SODIUM_LIB_DIR=$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}/lib" >> "$GITHUB_ENV"
           
       - name: magick stuff
         if: ${{ env.iconlink_url != 'false' }}
@@ -417,11 +463,11 @@ jobs:
           sed -i -e 's|updateUrl.isNotEmpty|false|' ./flutter/lib/desktop/pages/desktop_home_page.dart
           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
 
-      - name: Apply a2 Windows install card
+      - name: Apply clean ConnectAdmin branding
+        if: ${{ inputs.profile == 'admin' }}
         shell: bash
         run: |
-          python "$RUNNER_TEMP/a2_common_branding.py"
-          python "$RUNNER_TEMP/a2_windows_install_card.py"
+          python "$RUNNER_TEMP/a2_connectadmin.py"
 
       # - name: run as admin
       #   continue-on-error: true
@@ -446,8 +492,8 @@ jobs:
       - name: Build rustdesk
         run: |
           # Windows: build RustDesk
-          python3 .\build.py --portable --hwcodec --flutter --vram --skip-portable-pack
-          mv ./flutter/build/windows/x64/runner/Release ./rustdesk
+          python3 .\build.py --portable --hwcodec --flutter --skip-portable-pack ${{ matrix.job.build-args }}
+          mv ./flutter/build/windows/${{ matrix.job.flutter-arch }}/runner/Release ./rustdesk
  
           # Download usbmmidd_v2.zip and extract it to ./rustdesk
           Invoke-WebRequest -Uri https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip -OutFile usbmmidd_v2.zip
@@ -519,10 +565,10 @@ jobs:
           fi
 
       - name: Download RustDeskTempTopMostWindow artifacts
-        uses: actions/download-artifact@master
+        uses: actions/download-artifact@v4
         if: env.UPLOAD_ARTIFACT == 'true'
         with:
-          name: topmostwindow-artifacts
+          name: ${{ matrix.job.arch == 'aarch64' && 'topmostwindow-artifacts-ARM64' || 'topmostwindow-artifacts-x64' }}
           path: "./rustdesk"
       
       - name: zip dlls
@@ -583,9 +629,11 @@ jobs:
           pushd ./res/msi
           python preprocess.py --app-name "$myappname" --arp -d ../../rustdesk
           nuget restore msi.sln
-          msbuild msi.sln -p:Configuration=Release -p:Platform=x64 /p:TargetVersion=Windows10
-          cp ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk-latest.msi
-          mv ./Package/bin/x64/Release/en-us/Package.msi ../../SignOutput/rustdesk.msi
+          $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
+          msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
+          $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
+          cp $msi.FullName ../../SignOutput/rustdesk-latest.msi
+          mv $msi.FullName ../../SignOutput/rustdesk.msi
           sha256sum ../../SignOutput/rustdesk.msi
 
       - name: zip exe and msi
@@ -618,20 +666,20 @@ jobs:
 
       - name: rename rustdesk.exe to filename.exe
         run: |
-          mv ./SignOutput/rustdesk.exe "./SignOutput/${{ env.filename }}.exe" || echo "rustdesk"
+          mv ./SignOutput/rustdesk.exe "./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.exe" || echo "rustdesk"
 
       - name: rename rustdesk.msi to filename.msi
         continue-on-error: true
         run: |
-          mv ./SignOutput/rustdesk.msi "./SignOutput/${{ env.filename }}.msi" || echo "rustdesk"
+          mv ./SignOutput/rustdesk.msi "./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.msi" || echo "rustdesk"
 
       - name: Upload a2 Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.filename }}-windows
+          name: ${{ env.filename }}-windows-${{ matrix.job.arch }}
           path: |
-            ./SignOutput/${{ env.filename }}.exe
-            ./SignOutput/${{ env.filename }}.msi
+            ./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.exe
+            ./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.msi
           if-no-files-found: error
           retention-days: 7
 
