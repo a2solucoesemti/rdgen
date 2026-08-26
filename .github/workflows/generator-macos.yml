@@ -133,7 +133,9 @@ jobs:
 
       - name: Preserve a2 desktop card patch
         shell: bash
-        run: cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+        run: |
+          cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+          cp .github/patches/a2_common_branding.py "$RUNNER_TEMP/a2_common_branding.py"
 
       - name: Checkout source code
         if: ${{ env.VERSION != 'master' }}
@@ -482,7 +484,9 @@ jobs:
 
       - name: Apply a2 desktop card colors
         shell: bash
-        run: git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+        run: |
+          python "$RUNNER_TEMP/a2_common_branding.py"
+          git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
