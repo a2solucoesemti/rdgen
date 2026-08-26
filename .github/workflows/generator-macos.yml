@@ -57,13 +57,6 @@ jobs:
       matrix:
         job:
           - {
-              target: x86_64-apple-darwin,
-              os: macos-15-intel, #macos-latest or macos-14 use M1 now, https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#:~:text=14%20GB-,macos%2Dlatest%20or%20macos%2D14,-The%20macos%2Dlatestlabel
-              extra-build-args: "",
-              arch: x86_64,
-              vcpkg-triplet: x64-osx,
-            }
-          - {
               target: aarch64-apple-darwin,
               os: macos-14,
               # extra-build-args: "--disable-flutter-texture-render", # disable this for mac, because we see a lot of users reporting flickering both on arm and x64, and we can not confirm if texture rendering has better performance if htere is no vram, https://github.com/rustdesk/rustdesk/issues/6296
@@ -131,9 +124,9 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
-      - name: Preserve a2 desktop card patch
+      - name: Preserve a2 macOS install card customizer
         shell: bash
-        run: cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+        run: cp .github/patches/apply_a2_macos_install_card.py "$RUNNER_TEMP/apply_a2_macos_install_card.py"
 
       - name: Checkout source code
         if: ${{ env.VERSION != 'master' }}
@@ -480,9 +473,9 @@ jobs:
           sed -i -e 's|updateUrl.isNotEmpty|false|' ./flutter/lib/desktop/pages/desktop_home_page.dart
           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
 
-      - name: Apply a2 desktop card colors
-        shell: bash
-        run: git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+      - name: Apply neutral a2 macOS install action
+        shell: python
+        run: exec(open(r"${{ runner.temp }}/apply_a2_macos_install_card.py", encoding="utf-8").read())
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
@@ -543,15 +536,29 @@ jobs:
           fi
           INFO_PLIST="$APP_PATH/Contents/Info.plist"
           test -f "$INFO_PLIST"
+          CURRENT_EXEC=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$INFO_PLIST")
+          CURRENT_EXEC_PATH="$APP_PATH/Contents/MacOS/$CURRENT_EXEC"
+          BRANDED_EXEC_PATH="$APP_PATH/Contents/MacOS/${{ env.appname }}"
+          if [ "$CURRENT_EXEC" != "${{ env.appname }}" ]; then
+            test -f "$CURRENT_EXEC_PATH"
+            mv "$CURRENT_EXEC_PATH" "$BRANDED_EXEC_PATH"
+          fi
+          chmod +x "$BRANDED_EXEC_PATH"
           /usr/libexec/PlistBuddy -c "Set :CFBundleName ${{ env.appname }}" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ env.appname }}" "$INFO_PLIST" || \
             /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ${{ env.appname }}" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable ${{ env.appname }}" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${{ env.BUNDLE_ID }}" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright Desenvolvido por a2" "$INFO_PLIST" || \
             /usr/libexec/PlistBuddy -c "Add :NSHumanReadableCopyright string Desenvolvido por a2" "$INFO_PLIST"
           ACTUAL_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$INFO_PLIST")
+          ACTUAL_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleName" "$INFO_PLIST")
+          ACTUAL_EXEC=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$INFO_PLIST")
           test "$ACTUAL_ID" = "${{ env.BUNDLE_ID }}"
-          echo "Identidade macOS validada: $ACTUAL_ID"
+          test "$ACTUAL_NAME" = "${{ env.appname }}"
+          test "$ACTUAL_EXEC" = "${{ env.appname }}"
+          test -x "$BRANDED_EXEC_PATH"
+          echo "Identidade macOS validada: $ACTUAL_NAME ($ACTUAL_ID), executável $ACTUAL_EXEC"
 
       # - name: Copy service file
       #   run: |
