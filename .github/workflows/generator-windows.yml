@@ -121,7 +121,7 @@ jobs:
 
       - name: Preserve a2 Windows UI patch
         shell: bash
-        run: cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+        run: cp .github/patches/a2_windows_install_card.py "$RUNNER_TEMP/a2_windows_install_card.py"
       
       - name: Set rdgen value
         if: ${{ env.rdgen == 'true' }}
@@ -417,7 +417,7 @@ jobs:
 
       - name: Apply a2 Windows install card
         shell: bash
-        run: git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+        run: python "$RUNNER_TEMP/a2_windows_install_card.py"
 
       # - name: run as admin
       #   continue-on-error: true
