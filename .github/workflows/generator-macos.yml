@@ -325,6 +325,17 @@ jobs:
           # Decode the a2 transparent icon stored as an encrypted repository secret.
           echo "$A2_ICON_BASE64" | base64 --decode > ./res/icon.png
           test -s ./res/icon.png
+
+          # macOS icons must not fill the entire 1024x1024 canvas. Build a
+          # rounded, inset variant for Finder/Dock while keeping icon.png for
+          # the in-app branding and tray assets.
+          magick ./res/icon.png -resize 824x824! /tmp/a2-macos-icon-source.png
+          magick -size 824x824 xc:none -fill white \
+            -draw "roundrectangle 0,0 823,823 180,180" /tmp/a2-macos-icon-mask.png
+          magick /tmp/a2-macos-icon-source.png /tmp/a2-macos-icon-mask.png \
+            -alpha off -compose CopyOpacity -composite \
+            -gravity center -background none -extent 1024x1024 ./res/app-icon-macos.png
+          test -s ./res/app-icon-macos.png
             
           # Backup existing files (if they exist)
           [ -f "./res/32x32.png" ] && mv ./res/32x32.png ./res/32x32.png.bak
@@ -351,13 +362,13 @@ jobs:
           rm ./temp_icon.pbm
           
           # Create macOS app icons
-          magick ./res/icon.png -resize 16x16 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png"
-          magick ./res/icon.png -resize 32x32 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png"
-          magick ./res/icon.png -resize 64x64 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png"
-          magick ./res/icon.png -resize 128x128 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png"
-          magick ./res/icon.png -resize 256x256 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png"
-          magick ./res/icon.png -resize 512x512 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png"
-          magick ./res/icon.png -resize 1024x1024 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png"
+          magick ./res/app-icon-macos.png -resize 16x16 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png"
+          magick ./res/app-icon-macos.png -resize 32x32 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png"
+          magick ./res/app-icon-macos.png -resize 64x64 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png"
+          magick ./res/app-icon-macos.png -resize 128x128 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png"
+          magick ./res/app-icon-macos.png -resize 256x256 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png"
+          magick ./res/app-icon-macos.png -resize 512x512 "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png"
+          cp ./res/app-icon-macos.png "flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png"
 
           # Create macOS specific icons
           magick ./res/icon.png -resize 128x128 ./res/mac-icon.png
@@ -551,8 +562,13 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ env.appname }}" "$INFO_PLIST" || \
             /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ${{ env.appname }}" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${{ env.BUNDLE_ID }}" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile AppIcon.icns" "$INFO_PLIST" || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon.icns" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright Desenvolvido por a2" "$INFO_PLIST" || \
             /usr/libexec/PlistBuddy -c "Add :NSHumanReadableCopyright string Desenvolvido por a2" "$INFO_PLIST"
+          mkdir -p "$APP_PATH/Contents/Resources"
+          cp ./flutter/macos/Runner/AppIcon.icns "$APP_PATH/Contents/Resources/AppIcon.icns"
+          test -s "$APP_PATH/Contents/Resources/AppIcon.icns"
           ACTUAL_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$INFO_PLIST")
           test "$ACTUAL_ID" = "${{ env.BUNDLE_ID }}"
           echo "Identidade macOS validada: $ACTUAL_ID"
