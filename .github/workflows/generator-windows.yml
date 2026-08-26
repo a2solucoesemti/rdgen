@@ -82,7 +82,7 @@ jobs:
     env:
       A2_CLIENT_CONFIG_B64: "${{ secrets.A2_CLIENT_CONFIG_B64 }}"
       A2_ADMIN_CONFIG_B64: "${{ secrets.A2_ADMIN_CONFIG_B64 }}"
-      A2_ICON_BASE64: "${{ secrets.A2_ICON_BASE64 }}"
+      A2_WINDOWS_ICON_BASE64: "${{ secrets.A2_WINDOWS_ICON_BASE64 }}"
       A2_LOGO_BASE64: "${{ secrets.A2_LOGO_BASE64 }}"
     steps:
       - name: Checkout Repository
@@ -362,7 +362,7 @@ jobs:
           retry_wait_seconds: 15
           shell: pwsh
           command: |
-            [IO.File]::WriteAllBytes("./res/iconx.png", [Convert]::FromBase64String($env:A2_ICON_BASE64))
+            [IO.File]::WriteAllBytes("./res/iconx.png", [Convert]::FromBase64String($env:A2_WINDOWS_ICON_BASE64))
             mv ./res/icon.ico ./res/icon.ico.bak
             mv ./res/icon.png ./res/icon.png.bak
             mv ./res/tray-icon.ico ./res/tray-icon.ico.bak
