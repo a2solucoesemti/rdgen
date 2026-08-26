@@ -143,6 +143,7 @@ jobs:
         shell: bash
         run: |
           cp .github/patches/a2_connectadmin.py "$RUNNER_TEMP/a2_connectadmin.py"
+          cp -R .github/assets/connectadmin/windows "$RUNNER_TEMP/connectadmin-windows-assets"
       
       - name: Set rdgen value
         if: ${{ env.rdgen == 'true' }}
@@ -174,11 +175,6 @@ jobs:
         with:
           name: ${{ matrix.job.arch == 'aarch64' && 'bridge-artifact-flutter-3.44' || 'bridge-artifact' }}
           path: ./
-
-      - name: Install ImageMagick on Windows
-        run: |
-          choco install -y imagemagick.app --no-progress
-          Get-ChildItem -Path "${env:ProgramFiles}" | % { $_.FullName } | Select-String -Pattern "[\/\\]ImageMagick[^\/\\]*$" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
 
       - name: fix flutter_gpu_texture_renderer (fixed in master rustdesk)
         shell: bash
@@ -397,30 +393,18 @@ jobs:
         shell: bash
         run: echo "SODIUM_LIB_DIR=$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}/lib" >> "$GITHUB_ENV"
           
-      - name: magick stuff
+      - name: Install prebuilt ConnectAdmin Windows icons
         if: ${{ env.iconlink_url != 'false' }}
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 5
-          max_attempts: 3
-          retry_wait_seconds: 15
-          shell: pwsh
-          command: |
-            [IO.File]::WriteAllBytes("./res/iconx.png", [Convert]::FromBase64String($env:A2_WINDOWS_ICON_BASE64))
-            mv ./res/icon.ico ./res/icon.ico.bak
-            mv ./res/icon.png ./res/icon.png.bak
-            mv ./res/tray-icon.ico ./res/tray-icon.ico.bak
-            mv ./res/iconx.png ./res/icon.png
-            mv ./res/32x32.png ./res/32x32.png.bak
-            mv ./res/64x64.png ./res/64x64.png.bak
-            mv ./res/128x128.png ./res/128x128.png.bak
-            mv ./res/128x128@2x.png ./res/128x128@2x.png.bak
-            magick ./res/icon.png -define icon:auto-resize=256,64,48,32,16 ./res/icon.ico
-            cp ./res/icon.ico ./res/tray-icon.ico
-            magick ./res/icon.png -resize 32x32 ./res/32x32.png
-            magick ./res/icon.png -resize 64x64 ./res/64x64.png
-            magick ./res/icon.png -resize 128x128 ./res/128x128.png
-            magick ./res/128x128.png -resize 200% ./res/128x128@2x.png
+        shell: pwsh
+        run: |
+          $assets = Join-Path $env:RUNNER_TEMP "connectadmin-windows-assets"
+          Copy-Item "$assets/icon.png" "./res/icon.png" -Force
+          Copy-Item "$assets/icon.ico" "./res/icon.ico" -Force
+          Copy-Item "$assets/icon.ico" "./res/tray-icon.ico" -Force
+          Copy-Item "$assets/32x32.png" "./res/32x32.png" -Force
+          Copy-Item "$assets/64x64.png" "./res/64x64.png" -Force
+          Copy-Item "$assets/128x128.png" "./res/128x128.png" -Force
+          Copy-Item "$assets/128x128@2x.png" "./res/128x128@2x.png" -Force
 
 
       - name: ui.rs icon
