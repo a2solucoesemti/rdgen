@@ -92,6 +92,7 @@ jobs:
         shell: python
         run: |
           import base64, json, os
+          from pathlib import Path
           profile = "${{ inputs.profile }}"
           encoded = os.environ["A2_ADMIN_CONFIG_B64" if profile == "admin" else "A2_CLIENT_CONFIG_B64"]
           config = json.loads(base64.b64decode(encoded).decode())
@@ -111,6 +112,11 @@ jobs:
                   print(f"::add-mask::{value}")
                   marker = f"A2_{key}_EOF"
                   env_file.write(f"{key}<<{marker}\n{value}\n{marker}\n")
+              for name in ("A2_CLIENT_CONFIG_B64", "A2_ADMIN_CONFIG_B64", "A2_ICON_BASE64", "A2_LOGO_BASE64"):
+                  env_file.write(f"{name}=\n")
+          runner_temp = Path(os.environ["RUNNER_TEMP"])
+          runner_temp.joinpath("a2-icon.png").write_bytes(base64.b64decode(os.environ["A2_ICON_BASE64"]))
+          runner_temp.joinpath("a2-logo.png").write_bytes(base64.b64decode(os.environ["A2_LOGO_BASE64"]))
 
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@v6
@@ -119,9 +125,9 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
-      - name: Preserve a2 Windows UI patch
+      - name: Preserve a2 Windows UI customizer
         shell: bash
-        run: cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+        run: cp .github/patches/apply_a2_windows_install_card.py "$RUNNER_TEMP/apply_a2_windows_install_card.py"
       
       - name: Set rdgen value
         if: ${{ env.rdgen == 'true' }}
@@ -360,7 +366,7 @@ jobs:
           retry_wait_seconds: 15
           shell: pwsh
           command: |
-            [IO.File]::WriteAllBytes("./res/iconx.png", [Convert]::FromBase64String($env:A2_ICON_BASE64))
+            Copy-Item "$env:RUNNER_TEMP\a2-icon.png" "./res/iconx.png"
             mv ./res/icon.ico ./res/icon.ico.bak
             mv ./res/icon.png ./res/icon.png.bak
             mv ./res/tray-icon.ico ./res/tray-icon.ico.bak
@@ -416,8 +422,8 @@ jobs:
           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
 
       - name: Apply a2 Windows install card
-        shell: bash
-        run: git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+        shell: python
+        run: exec(open(r"${{ runner.temp }}\apply_a2_windows_install_card.py", encoding="utf-8").read())
 
       # - name: run as admin
       #   continue-on-error: true
@@ -496,7 +502,7 @@ jobs:
           shell: pwsh
           continue_on_error: true
           command: |
-            [IO.File]::WriteAllBytes("./rustdesk/data/flutter_assets/assets/logo.png", [Convert]::FromBase64String($env:A2_LOGO_BASE64))
+            Copy-Item "$env:RUNNER_TEMP\a2-logo.png" "./rustdesk/data/flutter_assets/assets/logo.png"
 
       - name: find Runner.res
         # Windows: find Runner.res (compiled from ./flutter/windows/runner/Runner.rc), copy to ./Runner.res
