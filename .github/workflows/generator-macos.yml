@@ -499,9 +499,6 @@ jobs:
         shell: bash
         run: |
           python "$RUNNER_TEMP/a2_common_branding.py"
-          if [ "${{ inputs.profile }}" = "admin" ]; then
-            python "$RUNNER_TEMP/a2_connectadmin.py"
-          fi
           git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
           python "$RUNNER_TEMP/a2_macos_branding.py"
 
