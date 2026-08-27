@@ -603,17 +603,21 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Build msi
-        continue-on-error: true
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           $myappname = "${{ env.appname }}" -replace '\s','_'
           cp "rustdesk/${{ env.appname }}.exe" "rustdesk/${myappname}.exe" -ErrorAction SilentlyContinue
           pushd ./res/msi
-          python preprocess.py --app-name "$myappname" --arp -d ../../rustdesk
+          $cargoVersionLine = Select-String -Path ../../Cargo.toml -Pattern '^version = "([^"]+)"' | Select-Object -First 1
+          $appVersion = $cargoVersionLine.Matches[0].Groups[1].Value
+          if ($appVersion -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid MSI version: $appVersion" }
+          $env:VERSION = $appVersion
+          python preprocess.py --app-name "$myappname" --version "$appVersion" --arp -d ../../rustdesk
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
           $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
+          if (-not $msi) { throw "MSI output was not generated" }
           cp $msi.FullName ../../SignOutput/rustdesk-latest.msi
           mv $msi.FullName ../../SignOutput/rustdesk.msi
           sha256sum ../../SignOutput/rustdesk.msi
@@ -651,9 +655,16 @@ jobs:
           mv ./SignOutput/rustdesk.exe "./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.exe" || echo "rustdesk"
 
       - name: rename rustdesk.msi to filename.msi
-        continue-on-error: true
         run: |
-          mv ./SignOutput/rustdesk.msi "./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.msi" || echo "rustdesk"
+          mv ./SignOutput/rustdesk.msi "./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.msi"
+
+      - name: Verify Windows deliverables
+        shell: pwsh
+        run: |
+          $exe = "./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.exe"
+          $msi = "./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.msi"
+          if (-not (Test-Path $exe)) { throw "Missing executable: $exe" }
+          if (-not (Test-Path $msi)) { throw "Missing installer: $msi" }
 
       - name: Upload a2 Windows artifacts
         uses: actions/upload-artifact@v4
