@@ -88,6 +88,12 @@ jobs:
           profile = "${{ inputs.profile }}"
           encoded = os.environ["A2_ADMIN_CONFIG_B64" if profile == "admin" else "A2_CLIENT_CONFIG_B64"]
           config = json.loads(base64.b64decode(encoded).decode())
+          if profile == "admin":
+              config["appname"] = "ConnectAdmin"
+              config["exename"] = "ConnectAdmin"
+              config["custom"] = base64.b64encode(json.dumps({
+                  "conn-type": "outgoing"
+              }, separators=(",", ":")).encode()).decode()
           config["server"] = config["serverIP"]
           config["filename"] = config["exename"]
           config["rdgen"] = "a2"
@@ -327,10 +333,9 @@ jobs:
           echo "$A2_ICON_BASE64" | base64 --decode > ./res/icon.png
           test -s ./res/icon.png
 
-          # Preserve the complete branded artwork. Extra masking or padding
-          # makes recent macOS versions wrap it in a second grey icon shape.
-          magick ./res/icon.png -background black -alpha remove -alpha off \
-            -resize 1024x1024! ./res/app-icon-macos.png
+          # Keep the rounded transparent corners from the approved source.
+          # Flattening alpha here would turn the application icon square again.
+          magick ./res/icon.png -resize 1024x1024! ./res/app-icon-macos.png
           test -s ./res/app-icon-macos.png
             
           # Backup existing files (if they exist)
