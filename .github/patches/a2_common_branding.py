@@ -33,10 +33,12 @@ common_source = common_path.read_text(encoding="utf-8")
 start = common_source.index("Widget loadPowered(BuildContext context) {")
 end = common_source.index("\n\nconst _kDefaultLogoAsset", start)
 clean_footer = '''Widget loadPowered(BuildContext context) {
-  // a2 branded clients intentionally have no vendor caption above the logo.
-  return const SizedBox.shrink();
+  return Text(
+    "Desenvolvido por a2",
+    style: Theme.of(context).textTheme.bodySmall,
+  );
 }'''
 common_source = common_source[:start] + clean_footer + common_source[end:]
 common_path.write_text(common_source, encoding="utf-8")
 
-print("Applied a2 branding: Portuguese, clean footer, contextual desktop text")
+print("Applied a2 branding: Portuguese, a2 developer caption, contextual desktop text")

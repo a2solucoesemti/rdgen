@@ -112,9 +112,9 @@ jobs:
           if profile == "admin":
               config["appname"] = "ConnectAdmin"
               config["exename"] = "ConnectAdmin"
-              config["custom"] = base64.b64encode(json.dumps({
-                  "conn-type": "outgoing"
-              }, separators=(",", ":")).encode()).decode()
+              # Bidirectional: show this device ID and require manual approval.
+              # The ConnectAdmin source patch hides the password controls.
+              config["custom"] = base64.b64encode(b"{}").decode()
           config["server"] = config["serverIP"]
           config["filename"] = config["exename"]
           config["rdgen"] = "a2"
@@ -470,6 +470,11 @@ jobs:
           flutter pub get
           flutter pub run flutter_launcher_icons
           cd ..
+          # flutter_launcher_icons may regenerate a different Windows resource.
+          # Force the approved ICO into the executable/installer resource last.
+          Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/icon.ico" "./flutter/windows/runner/resources/app_icon.ico" -Force
+          Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/icon.ico" "./res/icon.ico" -Force
+          Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/icon.ico" "./res/tray-icon.ico" -Force
 
       - name: Build rustdesk
         run: |

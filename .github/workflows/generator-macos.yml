@@ -91,9 +91,9 @@ jobs:
           if profile == "admin":
               config["appname"] = "ConnectAdmin"
               config["exename"] = "ConnectAdmin"
-              config["custom"] = base64.b64encode(json.dumps({
-                  "conn-type": "outgoing"
-              }, separators=(",", ":")).encode()).decode()
+              # Bidirectional: show this device ID and require manual approval.
+              # The ConnectAdmin source patch hides the password controls.
+              config["custom"] = base64.b64encode(b"{}").decode()
           config["server"] = config["serverIP"]
           config["filename"] = config["exename"]
           config["rdgen"] = "a2"
@@ -142,6 +142,7 @@ jobs:
         run: |
           cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
           cp .github/patches/a2_common_branding.py "$RUNNER_TEMP/a2_common_branding.py"
+          cp .github/patches/a2_connectadmin.py "$RUNNER_TEMP/a2_connectadmin.py"
           cp .github/patches/a2_macos_branding.py "$RUNNER_TEMP/a2_macos_branding.py"
 
       - name: Checkout source code
@@ -498,6 +499,9 @@ jobs:
         shell: bash
         run: |
           python "$RUNNER_TEMP/a2_common_branding.py"
+          if [ "${{ inputs.profile }}" = "admin" ]; then
+            python "$RUNNER_TEMP/a2_connectadmin.py"
+          fi
           git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff" && git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
           python "$RUNNER_TEMP/a2_macos_branding.py"
 
