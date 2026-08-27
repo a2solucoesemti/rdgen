@@ -114,7 +114,14 @@ jobs:
               config["exename"] = "ConnectAdmin"
               # Bidirectional: show this device ID and require manual approval.
               # The ConnectAdmin source patch hides the password controls.
-              config["custom"] = base64.b64encode(b"{}").decode()
+              admin_options = {
+                  "override-settings": {
+                      "view-style": "adaptive"
+                  }
+              }
+              config["custom"] = base64.b64encode(json.dumps(
+                  admin_options, separators=(",", ":")
+              ).encode()).decode()
           else:
               config["appname"] = "Connect"
               config["exename"] = "Connect"

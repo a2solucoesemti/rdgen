@@ -89,4 +89,13 @@ if window_icon_count != 1:
     raise SystemExit(f"Expected one custom window icon path, found {window_icon_count}")
 window_path.write_text(window_source, encoding="utf-8")
 
-print(f"Applied {app_name} branding, centered Quit and separated small window icon")
+install_path = Path("flutter/lib/desktop/pages/install_page.dart")
+install_source = install_path.read_text(encoding="utf-8")
+accept_install = "label: Text(translate('Accept and Install'))"
+install_only = "label: Text(translate('Install'))"
+if install_source.count(accept_install) != 1:
+    raise SystemExit("Expected exactly one Accept and Install button")
+install_source = install_source.replace(accept_install, install_only)
+install_path.write_text(install_source, encoding="utf-8")
+
+print(f"Applied {app_name} branding, centered Quit, simple Install and window icon")
