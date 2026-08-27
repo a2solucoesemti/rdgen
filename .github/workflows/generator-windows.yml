@@ -422,6 +422,7 @@ jobs:
           Copy-Item "$assets/icon.png" "./res/icon.png" -Force
           Copy-Item "$assets/icon.ico" "./res/icon.ico" -Force
           Copy-Item "$assets/tray-icon.ico" "./res/tray-icon.ico" -Force
+          Copy-Item "$assets/window-icon.ico" "./res/window-icon.ico" -Force
           Copy-Item "$assets/32x32.png" "./res/32x32.png" -Force
           Copy-Item "$assets/64x64.png" "./res/64x64.png" -Force
           Copy-Item "$assets/128x128.png" "./res/128x128.png" -Force
@@ -499,7 +500,7 @@ jobs:
           # Force the approved ICO into the executable/installer resource last.
           Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/icon.ico" "./flutter/windows/runner/resources/app_icon.ico" -Force
           Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/icon.ico" "./flutter/assets/icon.ico" -Force
-          Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/tray-icon.ico" "./flutter/assets/window-icon.ico" -Force
+          Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/window-icon.ico" "./flutter/assets/window-icon.ico" -Force
           Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/icon.ico" "./res/icon.ico" -Force
           Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/tray-icon.ico" "./res/tray-icon.ico" -Force
 
