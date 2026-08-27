@@ -122,7 +122,9 @@ jobs:
               # after a local click. Password access remains unavailable.
               client_options = {
                   "conn-type": "incoming",
-                  "approve-mode": "click"
+                  "override-settings": {
+                      "approve-mode": "click"
+                  }
               }
               config["custom"] = base64.b64encode(json.dumps(
                   client_options, separators=(",", ":")
