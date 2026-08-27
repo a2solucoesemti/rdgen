@@ -115,6 +115,18 @@ jobs:
               # Bidirectional: show this device ID and require manual approval.
               # The ConnectAdmin source patch hides the password controls.
               config["custom"] = base64.b64encode(b"{}").decode()
+          else:
+              config["appname"] = "Connect"
+              config["exename"] = "Connect"
+              # Receiver-only client: expose its ID and accept sessions only
+              # after a local click. Password access remains unavailable.
+              client_options = {
+                  "conn-type": "incoming",
+                  "approve-mode": "click"
+              }
+              config["custom"] = base64.b64encode(json.dumps(
+                  client_options, separators=(",", ":")
+              ).encode()).decode()
           config["server"] = config["serverIP"]
           config["filename"] = config["exename"]
           config["rdgen"] = "a2"
@@ -445,10 +457,14 @@ jobs:
           sed -i -e 's|updateUrl.isNotEmpty|false|' ./flutter/lib/desktop/pages/desktop_home_page.dart
           sed -i '/let (request, url) =/,/Ok(())/{/Ok(())/!d}' ./src/common.rs
 
-      - name: Apply clean ConnectAdmin branding
-        if: ${{ inputs.profile == 'admin' }}
+      - name: Apply clean Connect branding
         shell: bash
         run: |
+          if [ "${{ inputs.profile }}" = "admin" ]; then
+            export A2_APP_NAME="ConnectAdmin"
+          else
+            export A2_APP_NAME="Connect"
+          fi
           python "$RUNNER_TEMP/a2_connectadmin.py"
 
       # - name: run as admin

@@ -1,13 +1,15 @@
 from pathlib import Path
+import os
 import re
 
 
+app_name = os.environ.get("A2_APP_NAME", "ConnectAdmin")
 config_path = Path("libs/hbb_common/src/config.rs")
 source = config_path.read_text(encoding="utf-8")
 
 source, app_name_count = re.subn(
     r'pub static ref APP_NAME: RwLock<String> = RwLock::new\("RustDesk"\.to_owned\(\)\);',
-    'pub static ref APP_NAME: RwLock<String> = RwLock::new("ConnectAdmin".to_owned());',
+    f'pub static ref APP_NAME: RwLock<String> = RwLock::new("{app_name}".to_owned());',
     source,
 )
 if app_name_count != 1:
@@ -53,4 +55,4 @@ if home.count(password_board) != 1:
 home = home.replace(password_board, "")
 home_path.write_text(home, encoding="utf-8")
 
-print("Applied ConnectAdmin branding, disabled account features and hid password board")
+print(f"Applied {app_name} branding, disabled account features and hid password board")
