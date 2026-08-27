@@ -636,7 +636,10 @@ jobs:
           python preprocess.py --app-name "$myappname" --version "$appVersion" --arp -d ../../rustdesk
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
-          msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
+          # GitHub-hosted Windows runners may not expose the Windows Installer
+          # service required by WiX ICE validation. Build the MSI without ICE;
+          # the following steps still require and verify the generated package.
+          msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10 /p:SuppressValidation=true
           $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
           if (-not $msi) { throw "MSI output was not generated" }
           cp $msi.FullName ../../SignOutput/rustdesk-latest.msi
