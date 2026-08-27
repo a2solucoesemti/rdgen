@@ -53,6 +53,40 @@ password_board = "      if (!isOutgoingOnly) buildPasswordBoard(context),\n"
 if home.count(password_board) != 1:
     raise SystemExit("Expected exactly one one-time-password board")
 home = home.replace(password_board, "")
+
+incoming_quit = """    if (bind.isIncomingOnly()) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: OutlinedButton(
+          onPressed: () {
+            SystemNavigator.pop(); // Close the application
+            // https://github.com/flutter/flutter/issues/66631
+            if (isWindows) {
+              exit(0);
+            }
+          },
+          child: Text(translate('Quit')),
+        ),
+      ).marginAll(14);
+    }
+"""
+centered_quit = incoming_quit.replace(
+    "alignment: Alignment.centerRight,", "alignment: Alignment.center,"
+)
+if home.count(incoming_quit) != 1:
+    raise SystemExit("Expected exactly one incoming-only Quit button")
+home = home.replace(incoming_quit, centered_quit)
 home_path.write_text(home, encoding="utf-8")
 
-print(f"Applied {app_name} branding, disabled account features and hid password board")
+window_path = Path("flutter/windows/runner/win32_window.cpp")
+window_source = window_path.read_text(encoding="utf-8")
+window_source, window_icon_count = re.subn(
+    r'icon_path \+= L"data\\\\flutter_assets\\\\assets\\\\icon\.ico";',
+    lambda _: r'icon_path += L"data\\flutter_assets\\assets\\window-icon.ico";',
+    window_source,
+)
+if window_icon_count != 1:
+    raise SystemExit(f"Expected one custom window icon path, found {window_icon_count}")
+window_path.write_text(window_source, encoding="utf-8")
+
+print(f"Applied {app_name} branding, centered Quit and separated small window icon")
