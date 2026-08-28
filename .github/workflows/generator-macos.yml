@@ -630,7 +630,9 @@ jobs:
         continue-on-error: false
         shell: bash
         run: |
-          ASSETS_DIR="build/macos/Build/Products/Release/RustDesk.app/Contents/Frameworks/App.framework/Versions/Current/Resources/flutter_assets/assets"
+          APP_PATH=$(find ./flutter/build/macos/Build/Products/Release -maxdepth 1 -name "*.app" -print -quit)
+          test -n "$APP_PATH"
+          ASSETS_DIR="$APP_PATH/Contents/Frameworks/App.framework/Versions/Current/Resources/flutter_assets/assets"
           mkdir -p "$ASSETS_DIR"
           if [ -f "$ASSETS_DIR/icon.svg" ]; then
             mv "$ASSETS_DIR/icon.svg" "$ASSETS_DIR/icon.svg.bak"
@@ -646,10 +648,13 @@ jobs:
         continue-on-error: false
         shell: bash
         run: |
-          ASSETS_DIR="build/macos/Build/Products/Release/RustDesk.app/Contents/Frameworks/App.framework/Versions/Current/Resources/flutter_assets/assets"
+          APP_PATH=$(find ./flutter/build/macos/Build/Products/Release -maxdepth 1 -name "*.app" -print -quit)
+          test -n "$APP_PATH"
+          ASSETS_DIR="$APP_PATH/Contents/Frameworks/App.framework/Versions/Current/Resources/flutter_assets/assets"
           mkdir -p "$ASSETS_DIR"
           echo "$A2_LOGO_BASE64" | base64 --decode > "$ASSETS_DIR/logo.png"
           test -s "$ASSETS_DIR/logo.png"
+          echo "Logo a2 instalada em $ASSETS_DIR/logo.png"
 
       - name: Sign macOS app bundle
         if: env.MACOS_P12_BASE64 != ''
@@ -750,6 +755,9 @@ jobs:
             echo "Could not find .app bundle!"
             exit 1
           fi
+          FINAL_LOGO="${{ env.appname }}.app/Contents/Frameworks/App.framework/Versions/Current/Resources/flutter_assets/assets/logo.png"
+          test -s "$FINAL_LOGO"
+          echo "Logo a2 validada antes do DMG: $FINAL_LOGO"
           echo "Creating DMG for ${{ env.appname }}.app"
           create-dmg \
             --volname "${{ env.appname }}" \
