@@ -471,6 +471,7 @@ jobs:
       - name: Apply clean Connect branding
         shell: bash
         run: |
+          export A2_PROFILE="${{ inputs.profile }}"
           python "$RUNNER_TEMP/a2_windows_install_only.py"
           if [ "${{ inputs.profile }}" = "admin" ]; then
             export A2_APP_NAME="ConnectAdmin"
