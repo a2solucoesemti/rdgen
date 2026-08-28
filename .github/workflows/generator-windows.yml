@@ -164,7 +164,7 @@ jobs:
         shell: bash
         run: |
           cp .github/patches/a2_connectadmin.py "$RUNNER_TEMP/a2_connectadmin.py"
-          cp .github/patches/a2WindowsInstallCard.diff "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+          cp .github/patches/a2_windows_install_only.py "$RUNNER_TEMP/a2_windows_install_only.py"
           cp -R .github/assets/connectadmin/windows "$RUNNER_TEMP/connectadmin-windows-assets"
       
       - name: Set rdgen value
@@ -471,8 +471,7 @@ jobs:
       - name: Apply clean Connect branding
         shell: bash
         run: |
-          git apply --check "$RUNNER_TEMP/a2WindowsInstallCard.diff"
-          git apply "$RUNNER_TEMP/a2WindowsInstallCard.diff"
+          python "$RUNNER_TEMP/a2_windows_install_only.py"
           if [ "${{ inputs.profile }}" = "admin" ]; then
             export A2_APP_NAME="ConnectAdmin"
           else
