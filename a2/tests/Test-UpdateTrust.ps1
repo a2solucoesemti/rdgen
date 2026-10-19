@@ -70,4 +70,56 @@ try {
     $store.Remove($cert); $store.Close()
     Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -ErrorAction SilentlyContinue
 }
+# Test bounded streaming/redirect handling against a disposable loopback fixture.
+# Origin/TLS policy is tested separately above; only this fixture replaces the URL guard.
+$listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+$listener.Start(); $port = $listener.LocalEndpoint.Port; $listener.Stop()
+$ready = Join-Path $env:TEMP ([Guid]::NewGuid().ToString('N'))
+$download = Join-Path $env:TEMP ([Guid]::NewGuid().ToString('N'))
+$server = Start-Job -ArgumentList $port, $ready -ScriptBlock {
+    param($Port, $Ready)
+    $http = [Net.HttpListener]::new()
+    $http.Prefixes.Add("http://127.0.0.1:$Port/")
+    try {
+        $http.Start(); [IO.File]::WriteAllText($Ready, 'ready')
+        for ($i = 0; $i -lt 4; $i++) {
+            $context = $http.GetContext()
+            $response = $context.Response
+            try {
+                if ($context.Request.Url.AbsolutePath -eq '/redirect') {
+                    $response.StatusCode = 302
+                    $response.RedirectLocation = 'https://invalid.example/'
+                    $response.ContentLength64 = 0
+                } else {
+                    $text = if ($context.Request.Url.AbsolutePath -eq '/ok') { 'okay' } else { 'TOOLARGE' }
+                    $bytes = [Text.Encoding]::ASCII.GetBytes($text)
+                    if ($context.Request.Url.AbsolutePath -eq '/chunked') { $response.SendChunked = $true }
+                    else { $response.ContentLength64 = $bytes.Length }
+                    $response.OutputStream.Write($bytes, 0, $bytes.Length)
+                }
+            } finally { $response.Close() }
+        }
+    } finally { $http.Close() }
+}
+$urlGuard = ${function:Assert-A2Url}
+try {
+    $deadline = [DateTime]::UtcNow.AddSeconds(15)
+    while (-not (Test-Path $ready)) {
+        if ([DateTime]::UtcNow -gt $deadline) { throw 'Loopback test server did not start' }
+        Start-Sleep -Milliseconds 100
+    }
+    function Assert-A2Url([string]$Value) { return [Uri]$Value }
+    Receive-A2File "http://127.0.0.1:$port/ok" $download 4
+    if ([IO.File]::ReadAllText($download) -cne 'okay') { throw 'Download content mismatch' }
+    Remove-Item -LiteralPath $download -Force
+    foreach ($case in @('large', 'chunked', 'redirect')) {
+        Reject { Receive-A2File "http://127.0.0.1:$port/$case" $download 4 }
+        if (Test-Path $download) { throw 'Incomplete or oversized download was not removed' }
+    }
+} finally {
+    Set-Item Function:Assert-A2Url -Value $urlGuard
+    Stop-Job $server -ErrorAction SilentlyContinue
+    Remove-Job $server -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $ready, $download -Force -ErrorAction SilentlyContinue
+}
 Write-Output "Update trust negative tests passed: $script:count"
