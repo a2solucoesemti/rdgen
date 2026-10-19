@@ -16,6 +16,14 @@ on:
         options:
           - client
           - admin
+      unattended_controls:
+        description: 'Preview: native unattended controls (Connect only)'
+        type: boolean
+        default: false
+      production:
+        description: 'Require timestamped A2 signatures before artifact upload'
+        type: boolean
+        default: false
 
 
 env:
@@ -31,7 +39,7 @@ env:
   # for arm64 linux because official Dart SDK does not work
   FLUTTER_ELINUX_VERSION: "3.16.9"
   TAG_NAME: "${{ inputs.upload-tag }}"
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  VCPKG_BINARY_SOURCES: "clear;files,C:/a2-vcpkg-binary-cache,readwrite"
   # vcpkg version: 2024.07.12
   VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836"
@@ -102,40 +110,26 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         
+      - name: Require unattended production homologation
+        if: inputs.production && inputs.unattended_controls
+        shell: pwsh
+        env:
+          A2_UNATTENDED_APPROVED: ${{ vars.A2_UNATTENDED_APPROVED }}
+        run: |
+          if ($env:A2_UNATTENDED_APPROVED -cne 'true') {
+            throw 'Unattended controls require Windows homologation before production'
+          }
+
       - name: Load masked a2 configuration
         shell: python
         run: |
-          import base64, json, os
+          import base64, json, os, sys
+          sys.path.insert(0, os.environ["GITHUB_WORKSPACE"])
+          from a2.profiles import configure
           profile = "${{ inputs.profile }}"
           encoded = os.environ["A2_ADMIN_CONFIG_B64" if profile == "admin" else "A2_CLIENT_CONFIG_B64"]
           config = json.loads(base64.b64decode(encoded).decode())
-          if profile == "admin":
-              config["appname"] = "ConnectAdmin"
-              config["exename"] = "ConnectAdmin"
-              # Bidirectional: show this device ID and require manual approval.
-              # The ConnectAdmin source patch hides the password controls.
-              admin_options = {
-                  "override-settings": {
-                      "view-style": "adaptive"
-                  }
-              }
-              config["custom"] = base64.b64encode(json.dumps(
-                  admin_options, separators=(",", ":")
-              ).encode()).decode()
-          else:
-              config["appname"] = "Connect"
-              config["exename"] = "Connect"
-              # Receiver-only client: expose its ID and accept sessions only
-              # after a local click. Password access remains unavailable.
-              client_options = {
-                  "conn-type": "incoming",
-                  "override-settings": {
-                      "approve-mode": "click"
-                  }
-              }
-              config["custom"] = base64.b64encode(json.dumps(
-                  client_options, separators=(",", ":")
-              ).encode()).decode()
+          config = configure(config, profile, "${{ inputs.unattended_controls }}" == "true")
           config["server"] = config["serverIP"]
           config["filename"] = config["exename"]
           config["rdgen"] = "a2"
@@ -163,6 +157,13 @@ jobs:
       - name: Preserve a2 Windows UI patch
         shell: bash
         run: |
+          cp .github/patches/a2_consent.py "$RUNNER_TEMP/a2_consent.py"
+          cp .github/patches/a2_auth_policy.rs "$RUNNER_TEMP/a2_auth_policy.rs"
+          cp .github/patches/a2_consent_windows.rs "$RUNNER_TEMP/a2_consent_windows.rs"
+          cp .github/patches/a2_aom_nasm.py "$RUNNER_TEMP/a2_aom_nasm.py"
+          cp .github/patches/a2_aom_nasm.diff "$RUNNER_TEMP/a2_aom_nasm.diff"
+          cp .github/patches/a2_unattended.py "$RUNNER_TEMP/a2_unattended.py"
+          cp a2/windows/Test-A2Signature.ps1 "$RUNNER_TEMP/Test-A2Signature.ps1"
           cp .github/patches/a2_connectadmin.py "$RUNNER_TEMP/a2_connectadmin.py"
           cp .github/patches/a2_windows_install_only.py "$RUNNER_TEMP/a2_windows_install_only.py"
           cp -R .github/assets/connectadmin/windows "$RUNNER_TEMP/connectadmin-windows-assets"
@@ -383,6 +384,20 @@ jobs:
         with:
           prefix-key: ${{ matrix.job.os }}
 
+      - name: Fix AOM NASM 3 compatibility
+        shell: bash
+        run: python "$RUNNER_TEMP/a2_aom_nasm.py" "$RUNNER_TEMP/a2_aom_nasm.diff"
+
+      - name: Cache vcpkg binary packages
+        uses: actions/cache@v4
+        with:
+          path: C:\a2-vcpkg-binary-cache
+          key: a2-vcpkg-${{ matrix.job.arch }}-${{ env.VCPKG_COMMIT_ID }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'res/vcpkg/**') }}
+
+      - name: Prepare vcpkg binary cache directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force C:\a2-vcpkg-binary-cache | Out-Null
+
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
         with:
@@ -479,6 +494,9 @@ jobs:
             export A2_APP_NAME="Connect"
           fi
           python "$RUNNER_TEMP/a2_connectadmin.py"
+          export A2_UNATTENDED_CONTROLS="${{ inputs.unattended_controls }}"
+          python "$RUNNER_TEMP/a2_consent.py"
+          python "$RUNNER_TEMP/a2_unattended.py"
 
       # - name: run as admin
       #   continue-on-error: true
@@ -705,10 +723,25 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Missing executable: $exe" }
           if (-not (Test-Path $msi)) { throw "Missing installer: $msi" }
 
+      - name: Enforce signed production artifacts
+        if: inputs.production
+        shell: pwsh
+        env:
+          A2_SIGNER_SHA256: ${{ vars.A2_SIGNER_SHA256 }}
+          A2_PUBLISHER_SUBJECT: ${{ vars.A2_PUBLISHER_SUBJECT }}
+        run: |
+          if (-not $env:A2_SIGNER_SHA256 -or -not $env:A2_PUBLISHER_SUBJECT) {
+            throw "Production requires pinned A2 publisher identity"
+          }
+          & "$env:RUNNER_TEMP/Test-A2Signature.ps1" -Path @(
+            "./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.exe",
+            "./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.msi"
+          ) -CertificateSha256 $env:A2_SIGNER_SHA256 -PublisherSubject $env:A2_PUBLISHER_SUBJECT
+
       - name: Upload a2 Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.filename }}-windows-${{ matrix.job.arch }}
+          name: ${{ inputs.production && 'production' || 'preview' }}-${{ env.filename }}-windows-${{ matrix.job.arch }}
           path: |
             ./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.exe
             ./SignOutput/${{ env.filename }}-${{ matrix.job.arch }}.msi
@@ -716,7 +749,7 @@ jobs:
           retention-days: 7
 
       - name: send file to rdgen server
-        if: ${{ env.rdgen == 'true' }}
+        if: ${{ inputs.production && env.rdgen == 'true' }}
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 5
@@ -728,7 +761,7 @@ jobs:
             curl -i -X POST -H "Content-Type: multipart/form-data" -H "Authorization: Bearer ${{ env.token }}" -F "file=@./SignOutput/${{ env.filename }}.msi" -F "uuid=${{ env.uuid }}" ${{ secrets.GENURL }}/save_custom_client || true
 
       - name: send file to api server
-        if: ${{ env.rdgen == 'false' }}
+        if: ${{ inputs.production && env.rdgen == 'false' }}
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 5
