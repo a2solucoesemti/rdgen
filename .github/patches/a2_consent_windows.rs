@@ -93,3 +93,33 @@ fn a2_prepare_unattended_service() -> ResultType<()> {
     }
     Ok(())
 }
+
+pub fn a2_request_unattended_consent(enabled: bool) -> ResultType<bool> {
+    use winapi::um::{shellapi::*, winuser::SW_HIDE, handleapi::CloseHandle,
+        processthreadsapi::GetExitCodeProcess, synchapi::WaitForSingleObject};
+    let exe = std::env::current_exe()?.to_string_lossy().encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+    let verb = "runas".encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+    let flag = if enabled { "--a2-allow-unattended" } else { "--a2-revoke-unattended" };
+    let flag = flag.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
+    unsafe {
+        let mut request: SHELLEXECUTEINFOW = std::mem::zeroed();
+        request.cbSize = std::mem::size_of::<SHELLEXECUTEINFOW>() as u32;
+        request.fMask = SEE_MASK_NOCLOSEPROCESS;
+        request.lpVerb = verb.as_ptr();
+        request.lpFile = exe.as_ptr();
+        request.lpParameters = flag.as_ptr();
+        request.nShow = SW_HIDE;
+        if ShellExecuteExW(&mut request) == 0 {
+            let error = std::io::Error::last_os_error();
+            if error.raw_os_error() == Some(1223) { return Ok(false); }
+            return Err(error.into());
+        }
+        if request.hProcess.is_null() { bail!("Authorization process unavailable"); }
+        let completed = WaitForSingleObject(request.hProcess, 30_000) == 0;
+        let mut code = 1u32;
+        let result = completed && GetExitCodeProcess(request.hProcess, &mut code) != 0;
+        CloseHandle(request.hProcess);
+        if !result { bail!("Administrative policy result could not be confirmed"); }
+        Ok(code == 0)
+    }
+}

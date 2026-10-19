@@ -83,7 +83,7 @@ fn main() -> ResultType<()> {
         launch_arguments: vec!["--service".into()], dependencies: vec![],
         account_name: None, account_password: None,
     };
-    let service = manager.create_service(&info, ServiceAccess::all())?;
+    let service = manager.create_service(&info, ServiceAccess::START | ServiceAccess::STOP | ServiceAccess::QUERY_STATUS | ServiceAccess::CHANGE_CONFIG | ServiceAccess::DELETE)?;
     service.start(&[] as &[&str])?;
     let mut running = false;
     for _ in 0..100 {

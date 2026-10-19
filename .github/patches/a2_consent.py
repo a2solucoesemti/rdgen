@@ -42,16 +42,18 @@ def apply(root, assets):
     cargo = root / "libs/hbb_common/Cargo.toml"
     cargo_source = cargo.read_text()
     anchor = '[target.\'cfg(target_os = "windows")\'.dependencies]\nwinapi = { version = "0.3", features = ['
-    cargo_source = replace_once(cargo_source, anchor, anchor + '\n    "winreg", "winnt", "sddl", "winbase", "winsvc", "minwinbase",')
+    cargo_source = replace_once(cargo_source, anchor, anchor + '\n    "winreg", "winnt", "sddl", "winbase", "winsvc", "minwinbase", "shellapi", "processthreadsapi", "handleapi",')
 
     core = root / "src/core_main.rs"
     core_source = core.read_text()
     anchor = '            if args[0] == "--uninstall" {'
     dispatch = '''            if args[0] == "--a2-allow-unattended" || args[0] == "--a2-revoke-unattended" {
-                if let Err(error) = platform::a2_set_unattended_consent(args[0] == "--a2-allow-unattended") {
+                let result = platform::a2_set_unattended_consent(args[0] == "--a2-allow-unattended");
+                if let Err(error) = &result {
                     log::error!("A2 unattended authorization failed: {}", error);
                 }
-                return None;
+                log::logger().flush();
+                std::process::exit(if result.is_ok() { 0 } else { 1 });
             }
 '''
     core_source = replace_once(core_source, anchor, dispatch + anchor)
@@ -67,13 +69,9 @@ def apply(root, assets):
     } else if key == "a2-service-policy-version" {
         return crate::ipc::get_config("a2-consent-policy-version").ok().flatten().unwrap_or_default();
     } else if key == "a2-consent-enable" || key == "a2-consent-disable" {
-        let flag = if key == "a2-consent-enable" { "--a2-allow-unattended" } else { "--a2-revoke-unattended" };
-        return match std::env::current_exe() {
-            Ok(exe) => match crate::platform::run_uac(&exe.to_string_lossy(), flag) {
-                Ok(true) => "requested".to_owned(),
-                Ok(false) => "cancelled".to_owned(),
-                Err(_) => "error".to_owned(),
-            },
+        return match crate::platform::a2_request_unattended_consent(key == "a2-consent-enable") {
+            Ok(true) => "requested".to_owned(),
+            Ok(false) => "cancelled".to_owned(),
             Err(_) => "error".to_owned(),
         };
     }

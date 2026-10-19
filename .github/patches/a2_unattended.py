@@ -65,9 +65,9 @@ def apply(root):
           if (a2CredentialBusy) return;
           setState(() => a2CredentialBusy = true);
           try {
-            if (!isWindows || !bind.mainIsInstalled() ||
+            if (!isWindows || (!revoke && (!bind.mainIsInstalled() ||
                 (await bind.mainGetCommon(key: 'a2-is-installed-exe')) != 'true' ||
-                (await bind.mainGetCommon(key: 'a2-service-policy-version')) != '1') {
+                (await bind.mainGetCommon(key: 'a2-service-policy-version')) != '1'))) {
               throw Exception('Instale o Connect pelo botão Instalar antes de habilitar acesso permanente.');
             }
             // Require OS administration on every action, even with an unlock PIN.
@@ -85,8 +85,11 @@ def apply(root):
                 ],
               ));
             if (accepted != true) return;
+            if (!revoke && !a2ServiceRunning()) {
+              throw Exception('O serviço Connect precisa estar instalado e em execução.');
+            }
             final machinePolicy = await bind.mainGetCommon(key: 'a2-unattended-consent');
-            if (machinePolicy == 'true') {
+            if (revoke || machinePolicy == 'true') {
               await a2RequestPolicy(false);
             } else if (machinePolicy != 'false') {
               throw Exception('Instale o preview completo: o serviço não confirmou suporte à política A2.');

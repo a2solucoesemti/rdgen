@@ -19,5 +19,5 @@ anyhow = "1"
 log = "0.4"
 winreg = "0.11"
 windows-service = "0.6"
-winapi = { version = "0.3", features = ["winreg", "winnt", "sddl", "winbase", "winsvc", "minwinbase"] }
+winapi = { version = "0.3", features = ["winreg", "winnt", "sddl", "winbase", "winsvc", "minwinbase", "shellapi", "processthreadsapi", "handleapi", "synchapi", "winuser"] }
 ''')
