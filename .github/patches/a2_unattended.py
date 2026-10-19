@@ -16,10 +16,30 @@ def apply(root):
         raise ValueError("Unsupported upstream Security settings layout")
     if "Widget a2Unattended" in source:
         raise ValueError("A2 unattended patch already applied")
-    source = source.replace("import 'dart:io';", "import 'dart:io';\nimport 'dart:math' as a2math;", 1)
+    source = source.replace("import 'dart:io';", "import 'dart:io';\nimport 'dart:math' as a2math;\nimport 'dart:ffi' as a2ffi;\nimport 'package:ffi/ffi.dart' show calloc, StringUtf16Pointer;\nimport 'package:win32/win32.dart' as a2win32;", 1)
     source = source.replace(marker, "                a2Unattended(context),", 1)
     widget = r'''
   bool a2CredentialBusy = false;
+
+  bool a2ServiceRunning() {
+    if (!isWindows) return false;
+    final manager = a2win32.OpenSCManager(a2ffi.nullptr, a2ffi.nullptr, a2win32.SC_MANAGER_CONNECT);
+    if (manager == 0) return false;
+    try {
+      final name = 'Connect'.toNativeUtf16(allocator: calloc);
+      try {
+        final service = a2win32.OpenService(manager, name, a2win32.SERVICE_QUERY_STATUS);
+        if (service == 0) return false;
+        try {
+          final status = calloc<a2win32.SERVICE_STATUS>();
+          try {
+            return a2win32.QueryServiceStatus(service, status) != 0 &&
+                status.ref.dwCurrentState == a2win32.SERVICE_RUNNING;
+          } finally { calloc.free(status); }
+        } finally { a2win32.CloseServiceHandle(service); }
+      } finally { calloc.free(name); }
+    } finally { a2win32.CloseServiceHandle(manager); }
+  }
 
   Widget a2Unattended(BuildContext context) {
     return ChangeNotifierProvider.value(
@@ -62,9 +82,7 @@ def apply(root):
             } else {
               // Require an already running native Windows service. Do not start
               // or reinstall it here: upstream install_service kills processes.
-              final service = await Process.run('sc.exe', ['query', 'Connect']);
-              if (service.exitCode != 0 ||
-                  !RegExp(r':\s*4\s+RUNNING\b').hasMatch(service.stdout.toString())) {
+              if (!a2ServiceRunning()) {
                 throw Exception('O serviço Connect precisa estar instalado e em execução. Use a instalação nativa numa janela sem sessões remotas.');
               }
               final random = a2math.Random.secure();
