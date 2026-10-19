@@ -1,0 +1,31 @@
+name: A2 policy and update trust validation
+on:
+  workflow_dispatch:
+  push:
+    paths: ['a2/**', '.github/patches/a2_unattended.py', '.github/workflows/a2-validation.yml']
+  pull_request:
+    paths: ['a2/**', '.github/patches/a2_unattended.py', '.github/workflows/a2-validation.yml']
+permissions:
+  contents: read
+jobs:
+  profiles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s a2/tests -v
+  windows-trust:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell and run trust tests
+        shell: powershell
+        run: |
+          Get-ChildItem a2 -Recurse -Filter *.ps1 | ForEach-Object {
+            $tokens = $null; $errors = $null
+            $null = [Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }
+          & ./a2/tests/Test-UpdateTrust.ps1
