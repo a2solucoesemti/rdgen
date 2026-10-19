@@ -39,7 +39,7 @@ env:
   # for arm64 linux because official Dart SDK does not work
   FLUTTER_ELINUX_VERSION: "3.16.9"
   TAG_NAME: "${{ inputs.upload-tag }}"
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  VCPKG_BINARY_SOURCES: "clear;files,C:/a2-vcpkg-binary-cache,readwrite"
   # vcpkg version: 2024.07.12
   VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836"
@@ -384,6 +384,16 @@ jobs:
       - name: Fix AOM NASM 3 compatibility
         shell: bash
         run: python "$RUNNER_TEMP/a2_aom_nasm.py" "$RUNNER_TEMP/a2_aom_nasm.diff"
+
+      - name: Cache vcpkg binary packages
+        uses: actions/cache@v4
+        with:
+          path: C:\a2-vcpkg-binary-cache
+          key: a2-vcpkg-${{ matrix.job.arch }}-${{ env.VCPKG_COMMIT_ID }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'res/vcpkg/**') }}
+
+      - name: Prepare vcpkg binary cache directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force C:\a2-vcpkg-binary-cache | Out-Null
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
