@@ -1,8 +1,6 @@
 name: A2 policy and update trust validation
 on:
   workflow_dispatch:
-  push:
-    paths: ['a2/**', '.github/patches/a2_unattended.py', '.github/workflows/a2-validation.yml']
   pull_request:
     paths: ['a2/**', '.github/patches/a2_unattended.py', '.github/workflows/a2-validation.yml']
 permissions:
@@ -15,7 +13,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m unittest discover -s a2/tests -v
+      - name: Check patch against pinned upstream source
+        run: |
+          mkdir -p /tmp/a2-fixture/flutter/lib/desktop/pages
+          curl --fail --location --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/rustdesk/rustdesk/1.4.9/flutter/lib/desktop/pages/desktop_setting_page.dart -o /tmp/a2-settings.dart
+          A2_UPSTREAM_SETTINGS=/tmp/a2-settings.dart python -m unittest discover -s a2/tests -v
+          cp /tmp/a2-settings.dart /tmp/a2-fixture/flutter/lib/desktop/pages/desktop_setting_page.dart
+          cd /tmp/a2-fixture
+          A2_PROFILE=client A2_UNATTENDED_CONTROLS=true python "$GITHUB_WORKSPACE/.github/patches/a2_unattended.py"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          cache: true
+      - name: Parse generated Dart
+        run: dart format --output=none /tmp/a2-fixture/flutter/lib/desktop/pages/desktop_setting_page.dart
   windows-trust:
     runs-on: windows-2022
     steps:
