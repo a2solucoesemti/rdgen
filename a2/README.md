@@ -155,4 +155,6 @@ passou com 7 testes de perfil, 18 casos negativos de confiança, CMS válido e
 parser da interface Dart; assinatura com certificado A2 real continua pendente. O teste criptográfico cria e remove um certificado temporário apenas no
 runner de testes, nunca no cliente de produção.
 
-O plano de testes e a arquitetura de inventário estão em `docs/`.
+O [roteiro da equipe](docs/ROTEIRO-EQUIPE.md), o plano de testes completo e a
+arquitetura de inventário estão em `docs/`. A homologação será executada pela
+equipe no Windows de testes, conforme definido pelo responsável.

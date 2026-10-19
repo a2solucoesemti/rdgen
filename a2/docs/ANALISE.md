@@ -18,6 +18,8 @@ e MSBuild. `preprocess.py` extrai a versão Cargo e recebe `--app-name`.
 O UpgradeCode upstream é derivado de UUIDv5 do nome do executável: manter
 `Connect`/`ConnectAdmin` é necessário, mas não prova que o ID permaneça igual.
 Não mudar nome, diretório e família MSI durante a migração sem ensaio.
+O `Package.wxs` upstream permite upgrade da mesma versão; isso precisa ser
+confirmado nos MSI efetivamente gerados e não substitui versionamento A2 crescente.
 
 macOS: `.github/workflows/generator-macos.yml`, perfis e patches de marca próprios,
 artefatos DMG separados por arquitetura. Não modificado nesta etapa.
