@@ -65,7 +65,9 @@ incompleta, reparar em manutenção local e confirmar os mesmos testes novamente
 
 ## Testes de confiança e publicação
 
-Executar no runner Windows o parser PowerShell e `a2/tests/Test-UpdateTrust.ps1`.
+O parser PowerShell, CMS e casos negativos já passaram no runner Windows
+([evidência](https://github.com/a2solucoesemti/rdgen/actions/runs/39269043305)).
+Executar novamente `a2/tests/Test-UpdateTrust.ps1` em CI a cada mudança.
 Depois, com o certificado real, validar EXE/MSI pelo `Test-A2Signature.ps1`.
 Ensaiar também:
 

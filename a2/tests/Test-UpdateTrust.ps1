@@ -33,6 +33,23 @@ Reject { Assert-A2Manifest ([pscustomobject]$badHash) 'Connect' 'beta' 'x86_64' 
 $badSize = $valid.Clone(); $badSize.size = '1024'
 Reject { Assert-A2Manifest ([pscustomobject]$badSize) 'Connect' 'beta' 'x86_64' 11 }
 Reject { Test-A2ManifestSignature ([byte[]]@(1,2)) ([byte[]]@(3,4)) ('A' * 64) }
+# Verify the protected directory primitive and reject a broadened DACL.
+$directory = Join-Path $env:TEMP ([Guid]::NewGuid().ToString('N'))
+$unsigned = Join-Path $env:TEMP (([Guid]::NewGuid().ToString('N')) + '.exe')
+try {
+    Initialize-A2ProtectedDirectory $directory
+    Initialize-A2ProtectedDirectory $directory
+    $acl = Get-Acl $directory
+    $rule = [Security.AccessControl.FileSystemAccessRule]::new(
+        [Security.Principal.SecurityIdentifier]::new('S-1-1-0'), 'ReadAndExecute', 'Allow')
+    $acl.AddAccessRule($rule); Set-Acl $directory $acl
+    Reject { Initialize-A2ProtectedDirectory $directory }
+    [IO.File]::WriteAllText($unsigned, 'Unsigned test fixture')
+    Reject { & "$PSScriptRoot/../windows/Test-A2Signature.ps1" -Path $unsigned -CertificateSha256 ('0' * 64) -PublisherSubject 'CN=A2 CI' }
+} finally {
+    Remove-Item -LiteralPath $directory -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $unsigned -Force -ErrorAction SilentlyContinue
+}
 # Exercise a valid detached CMS signature using an ephemeral CI-only certificate.
 if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Run CMS integration tests only on isolated CI' }
 $cert = New-SelfSignedCertificate -Subject 'CN=A2 CI Test Only' -Type CodeSigningCert -CertStoreLocation 'Cert:\CurrentUser\My'

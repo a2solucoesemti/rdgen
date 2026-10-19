@@ -14,7 +14,7 @@ O responsável confirmou disponibilidade de Windows para testes; o certificado S
 | Credencial individual, renovação e revogação | Patch opt-in da tela Segurança, via IPC nativo; requer compilação e testes |
 | Instalação e serviço Windows | Mecanismo nativo reaproveitado; instalação anterior ao assistente; teste de login/logout/reboot pendente |
 | Assinatura EXE/MSI e bloqueio de produção | Scripts e gate preparados; certificado e execução Windows pendentes |
-| Manifesto destacado assinado e preparação de MSI | Scripts escritos; testes criptográficos Windows pendentes |
+| Manifesto destacado assinado e preparação de MSI | Parser/CMS validados em CI; ensaio com pacote real pendente |
 | Instalação automática, monitor de sessões, rollback | **Não implementados; nenhum agendamento criado** |
 | Atualização portátil | Não implementada; EXE existente preservado |
 | Atualização do ConnectAdmin macOS | Não implementada; DMGs e workflow existentes preservados |
@@ -150,8 +150,9 @@ A2_UPSTREAM_SETTINGS=/caminho/desktop_setting_page.dart python3 -m unittest disc
 ```
 
 Há workflow separado **A2 policy and update trust validation**, incluindo parser
-PowerShell e testes de CMS/manifesto no Windows. Ele ainda não foi executado nesta
-entrega. O teste criptográfico cria e remove um certificado temporário apenas no
+PowerShell e testes de CMS/manifesto no Windows. A [execução Windows/Linux](https://github.com/a2solucoesemti/rdgen/actions/runs/39269043305)
+passou com 7 testes de perfil, 18 casos negativos de confiança, CMS válido e
+parser da interface Dart; assinatura com certificado A2 real continua pendente. O teste criptográfico cria e remove um certificado temporário apenas no
 runner de testes, nunca no cliente de produção.
 
 O plano de testes e a arquitetura de inventário estão em `docs/`.
