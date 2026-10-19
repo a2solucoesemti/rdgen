@@ -28,15 +28,18 @@ def apply(root, assets):
             &OVERWRITE_SETTINGS,
             &CONFIG2.read().unwrap().options,'''
     source = replace_once(source, before, after)
-    before = '''    pub fn get_option(k: &str) -> String {
-        get_or('''
-    after = '''    pub fn get_option(k: &str) -> String {
-        if k == "approve-mode" || k == "verification-method" {
-            if let Some(value) = a2_auth_override(k, a2_unattended_authorized()) {
-                return value.to_owned();
+    before = """        res.extend(OVERWRITE_SETTINGS.read().unwrap().clone());
+        res
+    }"""
+    after = """        res.extend(OVERWRITE_SETTINGS.read().unwrap().clone());
+        let authorized = a2_unattended_authorized();
+        for key in ["approve-mode", "verification-method"] {
+            if let Some(value) = a2_auth_override(key, authorized) {
+                res.insert(key.to_owned(), value.to_owned());
             }
         }
-        get_or('''
+        res
+    }"""
     source = replace_once(source, before, after)
 
     cargo = root / "libs/hbb_common/Cargo.toml"
