@@ -157,6 +157,9 @@ jobs:
       - name: Preserve a2 Windows UI patch
         shell: bash
         run: |
+          cp .github/patches/a2_consent.py "$RUNNER_TEMP/a2_consent.py"
+          cp .github/patches/a2_auth_policy.rs "$RUNNER_TEMP/a2_auth_policy.rs"
+          cp .github/patches/a2_consent_windows.rs "$RUNNER_TEMP/a2_consent_windows.rs"
           cp .github/patches/a2_aom_nasm.py "$RUNNER_TEMP/a2_aom_nasm.py"
           cp .github/patches/a2_aom_nasm.diff "$RUNNER_TEMP/a2_aom_nasm.diff"
           cp .github/patches/a2_unattended.py "$RUNNER_TEMP/a2_unattended.py"
@@ -492,6 +495,7 @@ jobs:
           fi
           python "$RUNNER_TEMP/a2_connectadmin.py"
           export A2_UNATTENDED_CONTROLS="${{ inputs.unattended_controls }}"
+          python "$RUNNER_TEMP/a2_consent.py"
           python "$RUNNER_TEMP/a2_unattended.py"
 
       # - name: run as admin

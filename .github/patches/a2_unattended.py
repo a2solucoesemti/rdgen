@@ -21,6 +21,20 @@ def apply(root):
     widget = r'''
   bool a2CredentialBusy = false;
 
+  Future<void> a2RequestPolicy(bool enabled) async {
+    final response = await bind.mainGetCommon(key: enabled ? 'a2-consent-enable' : 'a2-consent-disable');
+    if (response != 'requested') {
+      throw Exception('A autorização administrativa da política não foi concluída.');
+    }
+    for (var attempt = 0; attempt < 50; attempt++) {
+      final state = await bind.mainGetCommon(key: 'a2-unattended-consent');
+      if (state == (enabled ? 'true' : 'false')) return;
+      if (state == 'unknown') throw Exception('O serviço não confirmou o estado da autorização.');
+      await Future.delayed(const Duration(milliseconds: 200));
+    }
+    throw Exception('Não foi possível confirmar a política com o serviço. Verifique o estado antes de tentar novamente.');
+  }
+
   bool a2ServiceRunning() {
     if (!isWindows) return false;
     final manager = a2win32.OpenSCManager(a2ffi.nullptr, a2ffi.nullptr, a2win32.SC_MANAGER_CONNECT);
@@ -51,7 +65,9 @@ def apply(root):
           if (a2CredentialBusy) return;
           setState(() => a2CredentialBusy = true);
           try {
-            if (!isWindows || !bind.mainIsInstalled()) {
+            if (!isWindows || !bind.mainIsInstalled() ||
+                (await bind.mainGetCommon(key: 'a2-is-installed-exe')) != 'true' ||
+                (await bind.mainGetCommon(key: 'a2-service-policy-version')) != '1') {
               throw Exception('Instale o Connect pelo botão Instalar antes de habilitar acesso permanente.');
             }
             // Require OS administration on every action, even with an unlock PIN.
@@ -62,13 +78,19 @@ def apply(root):
                 title: Text(revoke ? 'Revogar acesso permanente' : 'Habilitar acesso não supervisionado'),
                 content: Text(revoke
                     ? 'Revogar a senha permanente e voltar à aprovação por clique?'
-                    : 'Autorizo o acesso permanente a este computador. Uma credencial individual será gerada. Guarde-a no cofre de senhas autorizado da A2.'),
+                    : 'Autorizo o acesso permanente a este computador. Usaremos uma credencial individual, que deve estar no cofre autorizado da A2. O Windows solicitará autorização para salvar esta política.'),
                 actions: [
                   TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
                   TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
                 ],
               ));
             if (accepted != true) return;
+            final machinePolicy = await bind.mainGetCommon(key: 'a2-unattended-consent');
+            if (machinePolicy == 'true') {
+              await a2RequestPolicy(false);
+            } else if (machinePolicy != 'false') {
+              throw Exception('Instale o preview completo: o serviço não confirmou suporte à política A2.');
+            }
             // This card never installs, stops or restarts the service.
             // Installation/service management stays in the native installation UI.
             if (revoke) {
@@ -77,7 +99,7 @@ def apply(root):
                 throw Exception('Não foi possível restaurar a aprovação por clique.');
               }
               if (!await bind.mainSetPermanentPasswordWithResult(password: '')) {
-                throw Exception('Aprovação por clique restaurada, mas a remoção da senha falhou.');
+                throw Exception('Política desabilitada, mas o serviço não confirmou a remoção da senha. Verifique antes de concluir a revogação.');
               }
             } else {
               // Require an already running native Windows service. Do not start
@@ -85,34 +107,52 @@ def apply(root):
               if (!a2ServiceRunning()) {
                 throw Exception('O serviço Connect precisa estar instalado e em execução. Use a instalação nativa numa janela sem sessões remotas.');
               }
-              final random = a2math.Random.secure();
-              final credential = base64Url.encode(List<int>.generate(24, (_) => random.nextInt(256)));
-              // Remain attended if setting the credential fails.
+              var keepExisting = false;
+              if (!enabled && (await bind.mainGetCommon(key: 'local-permanent-password-set')) == 'true') {
+                if (!context.mounted) return;
+                final choice = await showDialog<String>(context: context, builder: (ctx) => AlertDialog(
+                  title: const Text('Credencial existente'),
+                  content: const Text('Há uma credencial local salva. Preserve-a se ela for individual e já estiver no cofre autorizado; escolha gerar outra para renová-la.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, 'new'), child: const Text('Gerar nova')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, 'keep'), child: const Text('Preservar credencial individual')),
+                  ],
+                ));
+                if (choice == null) return;
+                keepExisting = choice == 'keep';
+              }
+              // The native machine gate remains closed until elevated policy approval.
               await model.setApproveMode('click');
               if (await bind.mainGetOption(key: kOptionApproveMode) != 'click') {
                 throw Exception('Política de aprovação bloqueada; credencial não alterada.');
               }
-              if (!await bind.mainSetPermanentPasswordWithResult(password: credential)) {
-                throw Exception('Não foi possível armazenar a credencial no Connect.');
-              }
-              // Show the secret once, before enabling password acceptance.
-              // No logs, clipboard, file, environment or process arguments.
-              if (!context.mounted) return;
-              final saved = await showDialog<bool>(context: context,
-                barrierDismissible: false,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Guarde a credencial individual'),
-                  content: SelectableText(credential),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvei no cofre autorizado')),
-                  ],
-                ));
-              if (saved != true) {
-                await bind.mainSetPermanentPasswordWithResult(password: '');
-                return;
+              if (keepExisting) {
+                if (await bind.mainGetCommon(key: 'local-permanent-password-set') != 'true') {
+                  throw Exception('O serviço não confirmou a credencial existente.');
+                }
+              } else {
+                final random = a2math.Random.secure();
+                final credential = base64Url.encode(List<int>.generate(24, (_) => random.nextInt(256)));
+                // Never send the plaintext via arguments, files, environment or logs.
+                if (!context.mounted) return;
+                final saved = await showDialog<bool>(context: context,
+                  barrierDismissible: false,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Guarde a credencial individual'),
+                    content: SelectableText(credential),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvei no cofre autorizado')),
+                    ],
+                  ));
+                if (saved != true) return;
+                if (!await bind.mainSetPermanentPasswordWithResult(password: credential)) {
+                  throw Exception('O serviço não confirmou a gravação da credencial. A política permanece desabilitada.');
+                }
               }
               await model.setVerificationMethod(kUsePermanentPassword);
+              await a2RequestPolicy(true);
               // Keep the existing local approval path in addition to password access.
               await model.setApproveMode(defaultOptionApproveMode);
               if (await bind.mainGetOption(key: kOptionVerificationMethod) != kUsePermanentPassword ||

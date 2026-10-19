@@ -2,7 +2,7 @@ name: A2 policy and update trust validation
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['a2/**', '.github/patches/a2_unattended.py', '.github/workflows/a2-validation.yml']
+    paths: ['a2/**', '.github/patches/a2_*', '.github/workflows/a2-validation.yml', '.github/workflows/generator-windows.yml']
 permissions:
   contents: read
 jobs:
@@ -27,6 +27,11 @@ jobs:
           cache: true
       - name: Parse generated Dart
         run: dart format --output=none /tmp/a2-fixture/flutter/lib/desktop/pages/desktop_setting_page.dart
+      - uses: dtolnay/rust-toolchain@1.75
+      - name: Verify native authentication policy
+        run: |
+          rustc --edition=2021 --test .github/patches/a2_auth_policy.rs -o /tmp/a2-auth-policy-tests
+          /tmp/a2-auth-policy-tests
   windows-trust:
     runs-on: windows-2022
     steps:
@@ -56,3 +61,7 @@ jobs:
             dart run service_query.dart
             if ($LASTEXITCODE -ne 0) { throw 'Native service query failed' }
           } finally { Pop-Location }
+      - uses: dtolnay/rust-toolchain@1.75
+      - name: Exercise administrative consent on an isolated service fixture
+        shell: powershell
+        run: ./a2/tests/Test-NativeConsent.ps1
