@@ -1,5 +1,7 @@
 name: A2 preview UI typecheck
 on:
+  push:
+    paths: ['.github/workflows/a2-preview-typecheck.yml', '.github/patches/a2_unattended.py']
   workflow_dispatch:
     inputs:
       bridge_run:
@@ -21,10 +23,25 @@ jobs:
           repository: rustdesk/rustdesk
           ref: refs/tags/1.4.9
           path: client
+      - name: Select generated native bindings
+        id: bindings
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_RUN: ${{ inputs.bridge_run }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [[ -n "$REQUESTED_RUN" ]]; then
+            [[ "$REQUESTED_RUN" =~ ^[0-9]+$ ]] || exit 1
+            selected="$REQUESTED_RUN"
+          else
+            selected=$(gh api "repos/$REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts | map(select(.name == "bridge-artifact" and .expired == false)) | .[0].workflow_run.id')
+            [[ "$selected" =~ ^[0-9]+$ ]] || exit 1
+          fi
+          echo "run_id=$selected" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
           name: bridge-artifact
-          run-id: ${{ inputs.bridge_run }}
+          run-id: ${{ steps.bindings.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: client
       - uses: subosito/flutter-action@v2
