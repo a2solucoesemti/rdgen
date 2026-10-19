@@ -160,6 +160,7 @@ def apply(root):
               await model.setApproveMode(defaultOptionApproveMode);
               if (await bind.mainGetOption(key: kOptionVerificationMethod) != kUsePermanentPassword ||
                   await bind.mainGetOption(key: kOptionApproveMode) != defaultOptionApproveMode) {
+                await a2RequestPolicy(false);
                 await model.setApproveMode('click');
                 throw Exception('Não foi possível habilitar a política; aprovação por clique restaurada.');
               }

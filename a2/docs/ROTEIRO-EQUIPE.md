@@ -42,10 +42,17 @@ anterior funciona, quando existente. Instalar o preview sobre a instalação,
 sem remover o produto antes. Fazer cada combinação EXE→EXE, MSI→MSI e EXE↔MSI
 em snapshots separados.
 
-Depois de instalar, conferir **ID idêntico**, chave/servidor A2, senha anterior,
+Depois de instalar, conferir **ID idêntico**, chave/servidor A2,
 inicialização/estado do serviço e permissões. Confirmar ausência de segunda
-entrada em Aplicativos e segundo serviço. Não reutilizar a habilitação/renovação
-como parte desse teste: isso alteraria a senha e invalidaria a prova de preservação.
+entrada em Aplicativos e segundo serviço.
+
+Na primeira migração do aplicativo antigo, o acesso por senha permanece bloqueado
+até nova autorização administrativa, mesmo que o arquivo antigo já configurasse
+acesso permanente. No assistente, escolher **preservar a credencial existente**,
+confirmar UAC e testar a senha anterior pelo ConnectAdmin. Não escolher renovação
+nesse teste: isso alteraria a senha e invalidaria a prova de preservação.
+Nos próximos upgrades desse modelo, verificar que a autorização da mesma máquina
+continua válida sem refazer o assistente. Nunca copiar a autorização para outra máquina.
 
 No MSI upstream 1.4.9 existe `AllowSameVersionUpgrades=yes`, mas isso não comprova
 o comportamento dos nossos binários. Registrar também o resultado ao atualizar
@@ -61,6 +68,12 @@ versão de distribuição A2 crescente, ainda a definir.
 - Renovar/revogar durante uma sessão: sessão atual continua; validar a mudança
   numa conexão posterior. Não executar instalação ou remoção de serviço durante atendimento.
 - Reabrir aplicativo: estado exibido deve corresponder à política real.
+- Copiar somente preferências antigas com acesso permanente: não deve dispensar
+  o consentimento administrativo na máquina de destino.
+- Executar uma cópia portátil enquanto a instalação está autorizada: essa cópia
+  não deve herdar a autorização do serviço instalado.
+- Habilitar em serviço com início Manual: deve passar a Automatic sem parar ou
+  reiniciar o serviço. Registrar o PID antes/depois.
 
 ## Resultados para devolver
 

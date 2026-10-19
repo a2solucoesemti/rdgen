@@ -31,11 +31,18 @@ Prints devem ocultar credenciais e informações dos clientes.
 | Windows | Sessão ativa | Operações de credencial não encerram sessão; nenhuma instalação automática |
 | Windows | Recursos | Teclado, clipboard e áudio funcionam; arquivo/terminal/túnel continuam bloqueados |
 | Windows | Serviço parado/ausente | Assistente recusa habilitação; orienta manutenção |
+| Windows | Preferências importadas sem autorização HKLM | Não liberam acesso por senha |
+| Windows | Cópia portátil com serviço instalado autorizado | Não herda autorização do executável instalado |
+| Windows | Serviço Manual em execução | Habilitação muda para Auto sem alterar PID |
 | ConnectAdmin Windows | Preview client ligado/desligado | Marca e conexão de técnicos preservadas; sem card de cliente |
 | macOS Intel/Apple Silicon | DMG atual | Logo, conexão, permissões TCC, ID e operação dos técnicos preservados |
 
 Não presumir que IDs iguais visualmente bastem: reconectar de outro dispositivo,
-testar senha anterior e conferir servidor usado. Não copiar o backup de uma
+testar senha anterior e conferir servidor usado. Na primeira migração do aplicativo
+antigo, autorizar novamente no assistente com **preservar a credencial existente**.
+Até esse consentimento, a política nativa exige clique, mesmo com preferências
+antigas de acesso permanente. Nos upgrades seguintes, conferir persistência da
+autorização na mesma máquina. Não copiar o backup de uma
 máquina para outra; isso pode clonar identidade.
 
 ## Instalação permanente no Windows de teste

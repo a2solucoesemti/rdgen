@@ -41,7 +41,13 @@ Não habilitar o acesso permanente por meio de uma senha global no JSON de build
 O assistente fica em **Configurações → Segurança → Acesso não supervisionado**.
 Para o perfil client, substitui os controles genéricos de senha por habilitação,
 renovação e revogação. Exige instalação prévia, serviço Connect em execução,
-consentimento e verificação administrativa do Windows em cada ação.
+consentimento e verificação administrativa do Windows em cada ação. A autorização
+nativa fica em HKLM, com escrita restrita a Administradores/SYSTEM e leitura para
+usuários autenticados, vinculada à identidade desta máquina e ao executável do
+serviço Connect em execução. Preferências importadas não habilitam acesso por senha.
+A habilitação configura início automático sem parar/reiniciar o serviço existente.
+Na primeira migração, o assistente permite preservar uma credencial local existente
+após novo consentimento administrativo, sem renová-la.
 A instalação do serviço continua no fluxo nativo **Instalar**; esta etapa ainda
 não reúne instalação e habilitação em um único botão.
 
