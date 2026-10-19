@@ -151,10 +151,14 @@ A2_UPSTREAM_SETTINGS=/caminho/desktop_setting_page.dart python3 -m unittest disc
 ```
 
 Há workflow separado **A2 policy and update trust validation**, incluindo parser
-PowerShell e testes de CMS/manifesto no Windows. A [execução Windows/Linux](https://github.com/a2solucoesemti/rdgen/actions/runs/39269043305)
-passou com 7 testes de perfil, 18 casos negativos de confiança, CMS válido e
-parser da interface Dart; assinatura com certificado A2 real continua pendente. O teste criptográfico cria e remove um certificado temporário apenas no
-runner de testes, nunca no cliente de produção.
+PowerShell, CMS e downloads com limite de tamanho no Windows. A
+[execução Windows/Linux](https://github.com/a2solucoesemti/rdgen/actions/runs/39272258641)
+passou com 7 testes de perfil e 23 casos negativos, além de CMS válido, download
+válido, ACLs e parser Dart. A
+[análise de tipos da interface](https://github.com/a2solucoesemti/rdgen/actions/runs/39272963373)
+também passou com os bindings gerados pelo projeto. Assinatura com certificado
+A2 real continua pendente. Os testes criptográficos criam e removem um
+certificado temporário somente no runner de CI isolado, nunca nos clientes.
 
 O [roteiro da equipe](docs/ROTEIRO-EQUIPE.md), o plano de testes completo e a
 arquitetura de inventário estão em `docs/`. A homologação será executada pela
