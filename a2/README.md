@@ -113,8 +113,9 @@ O estado indica **preparado**, nunca **instalado**.
 
 Não executar este script como tarefa SYSTEM antes de homologar downloads,
 limites de recursos, permissões e comportamento de falhas no Windows.
-Downloads grandes ainda são validados por tamanho após a transferência;
-timeout, cancelamento e limites durante o streaming são trabalho pendente.
+O download tem limite durante streaming (64 KiB para manifesto/assinatura,
+tamanho assinado para o MSI), timeout de rede e duração máxima de 10 minutos.
+O fluxo completo de rede ainda depende de ensaio com o endpoint A2 real.
 
 ## Próxima etapa do atualizador
 

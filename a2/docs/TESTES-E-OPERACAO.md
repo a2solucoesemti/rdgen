@@ -81,8 +81,9 @@ Ensaiar também:
 - Pasta de staging com owner/ACL indevidos ou junction deve ser rejeitada.
 - Compatibilidade de cadeia, revogação de certificado e operação com proxy corporativo.
 
-A rotina de staging ainda não tem limite de bytes durante streaming, retry
-controlado nem agenda; homologar e completar antes de automatizar execução.
+A rotina de staging limita bytes durante streaming e duração do download.
+Ainda não tem retry controlado nem agenda; homologar rede, cancelamento e
+limites reais antes de automatizar execução.
 
 ## Upgrade transacional pendente
 

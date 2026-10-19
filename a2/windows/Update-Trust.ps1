@@ -43,6 +43,47 @@ function Assert-A2Url([string]$Value) {
     return $url
 }
 
+function Receive-A2File([string]$Url, [string]$Destination, [long]$MaxBytes) {
+    $uri = Assert-A2Url $Url
+    if ($MaxBytes -le 0 -or $MaxBytes -gt 2GB) { throw 'Invalid download limit' }
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $request = [Net.HttpWebRequest]::Create($uri)
+    $request.AllowAutoRedirect = $false
+    $request.Timeout = 30000
+    $request.ReadWriteTimeout = 30000
+    $request.MaximumResponseHeadersLength = 64
+    $request.UserAgent = 'A2Connect-Staging/1'
+    $response = $null; $inputStream = $null; $outputStream = $null
+    $created = $false; $complete = $false
+    try {
+        $response = $request.GetResponse()
+        if ([int]$response.StatusCode -ne 200) { throw 'A2 update download requires HTTP 200 without redirects' }
+        if ($response.ContentLength -gt $MaxBytes) { throw 'Download exceeds declared limit' }
+        $inputStream = $response.GetResponseStream()
+        $outputStream = [IO.File]::Open($Destination, 'CreateNew', 'Write', 'None')
+        $created = $true
+        $buffer = New-Object byte[] 65536
+        [long]$total = 0
+        $timer = [Diagnostics.Stopwatch]::StartNew()
+        while ($true) {
+            if ($timer.Elapsed.TotalMinutes -gt 10) { throw 'Download time limit exceeded' }
+            $read = $inputStream.Read($buffer, 0, $buffer.Length)
+            if ($read -eq 0) { break }
+            $total += $read
+            if ($total -gt $MaxBytes) { throw 'Download exceeds declared limit' }
+            $outputStream.Write($buffer, 0, $read)
+        }
+        $outputStream.Flush($true)
+        $complete = $true
+    } finally {
+        if ($outputStream) { $outputStream.Dispose() }
+        if ($inputStream) { $inputStream.Dispose() }
+        if ($response) { $response.Dispose() }
+        $request.Abort()
+        if ($created -and -not $complete) { Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 function Get-A2CertificateHash($Certificate) {
     $hash = [Security.Cryptography.SHA256]::Create()
     try { return ([BitConverter]::ToString($hash.ComputeHash($Certificate.RawData))).Replace('-', '') }
