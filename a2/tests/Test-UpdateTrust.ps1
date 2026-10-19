@@ -66,6 +66,9 @@ try {
     Test-A2ManifestSignature $content $signature $pin
     Reject { Test-A2ManifestSignature ([Text.Encoding]::UTF8.GetBytes('tampered')) $signature $pin }
     Reject { Test-A2ManifestSignature $content $signature ('0' * 64) }
+    $attached = [Security.Cryptography.Pkcs.SignedCms]::new([Security.Cryptography.Pkcs.ContentInfo]::new($content), $false)
+    $attached.ComputeSignature($signer)
+    Reject { Test-A2ManifestSignature ([Text.Encoding]::UTF8.GetBytes('different external manifest')) $attached.Encode() $pin }
 } finally {
     $store.Remove($cert); $store.Close()
     Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -ErrorAction SilentlyContinue

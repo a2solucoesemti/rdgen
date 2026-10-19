@@ -95,6 +95,10 @@ function Test-A2ManifestSignature([byte[]]$Content, [byte[]]$Signature, [string]
     $info = [Security.Cryptography.Pkcs.ContentInfo]::new($Content)
     $cms = [Security.Cryptography.Pkcs.SignedCms]::new($info, $true)
     $cms.Decode($Signature)
+    if (-not $cms.Detached -or $cms.ContentInfo.ContentType.Value -ne '1.2.840.113549.1.7.1' -or
+        [Convert]::ToBase64String($cms.ContentInfo.Content) -cne [Convert]::ToBase64String($Content)) {
+        throw 'CMS must authenticate the exact external manifest bytes'
+    }
     if ($cms.SignerInfos.Count -ne 1) { throw 'Expected exactly one release signer' }
     $signer = $cms.SignerInfos[0]
     if ($signer.DigestAlgorithm.Value -ne '2.16.840.1.101.3.4.2.1') { throw 'Release signature must use SHA-256' }
