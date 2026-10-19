@@ -96,13 +96,15 @@ function Test-A2ManifestSignature([byte[]]$Content, [byte[]]$Signature, [string]
     $cms = [Security.Cryptography.Pkcs.SignedCms]::new($info, $true)
     $cms.Decode($Signature)
     if ($cms.SignerInfos.Count -ne 1) { throw 'Expected exactly one release signer' }
-    # false means verify certificate chain as well as the detached signature.
-    $cms.CheckSignature($false)
     $signer = $cms.SignerInfos[0]
     if ($signer.DigestAlgorithm.Value -ne '2.16.840.1.101.3.4.2.1') { throw 'Release signature must use SHA-256' }
-    if ((Get-A2CertificateHash $signer.Certificate) -cne $PinnedSha256.ToUpperInvariant()) {
+    if (-not $signer.Certificate -or
+        (Get-A2CertificateHash $signer.Certificate) -cne $PinnedSha256.ToUpperInvariant()) {
         throw 'Untrusted release signer'
     }
+    # Reject unpinned certificates before chain validation can fetch AIA/CRL URLs.
+    # false verifies the detached signature and the trusted signer's chain.
+    $cms.CheckSignature($false)
 }
 
 function Test-A2MsiIdentity([string]$Path, [string]$Product, [version]$Version, [string]$Architecture) {
