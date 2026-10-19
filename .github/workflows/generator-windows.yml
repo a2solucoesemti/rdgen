@@ -157,6 +157,8 @@ jobs:
       - name: Preserve a2 Windows UI patch
         shell: bash
         run: |
+          cp .github/patches/a2_aom_nasm.py "$RUNNER_TEMP/a2_aom_nasm.py"
+          cp .github/patches/a2_aom_nasm.diff "$RUNNER_TEMP/a2_aom_nasm.diff"
           cp .github/patches/a2_unattended.py "$RUNNER_TEMP/a2_unattended.py"
           cp a2/windows/Test-A2Signature.ps1 "$RUNNER_TEMP/Test-A2Signature.ps1"
           cp .github/patches/a2_connectadmin.py "$RUNNER_TEMP/a2_connectadmin.py"
@@ -378,6 +380,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.job.os }}
+
+      - name: Fix AOM NASM 3 compatibility
+        shell: bash
+        run: python "$RUNNER_TEMP/a2_aom_nasm.py" "$RUNNER_TEMP/a2_aom_nasm.diff"
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11

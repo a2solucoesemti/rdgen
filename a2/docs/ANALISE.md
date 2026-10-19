@@ -49,8 +49,12 @@ a instalação/remover serviço será homologada em manutenção local.
 
 O assistente nativo de Segurança pode desbloquear por PIN. O novo controle pede
 também a verificação administrativa do sistema em cada ação, mesmo com PIN.
-O armazenamento de senha reutiliza a implementação nativa; não foi auditado
-como equivalente a DPAPI ou cofre corporativo.
+No submódulo hbb_common fixado pela tag 1.4.9
+(`7e1c392c62d39c364127307cd408421dd5f8cfb0`), `Config::set_permanent_password`
+calcula o hash com salt e prepara armazenamento criptografado; o IPC aguarda
+ACK do daemon e sincroniza o armazenamento/salt, sem ler a senha de volta.
+A implementação foi conferida, mas proteção local/ACL, migração e equivalência
+a DPAPI ou cofre corporativo não foram comprovadas em instalação real.
 
 ## Atualização e OSS/Pro
 
@@ -64,6 +68,12 @@ Decisão desta etapa: fixar `allow-auto-update=N` nos dois perfis Windows;
 usar validação e preparação próprias de pacote assinado A2, sem acionar o
 instalador até existir política local, intertravamento de sessão e rollback.
 Não usar o simples campo `downloadLink` como raiz de confiança.
+O RDGen existente também remove a verificação da assinatura do fornecedor sobre
+`custom.txt` e utiliza `custom_.txt` via `allowCustom.py`. Esse blob de configuração
+não é uma assinatura A2. Antes de produção, revisar origem/ACL do blob e substituir
+esse bypass por verificação A2 ou por configuração embutida autenticada. Não
+reaproveitar automaticamente o staging nativo de custom client como confiança
+para pacotes RDGen.
 
 Acesso remoto por serviço e senha permanente existe no cliente OSS e não exige
 trocar hbbs/hbbr por Pro. Console, assignment, políticas e APIs de administração
@@ -77,6 +87,8 @@ não foi inspecionado por SSH nem modificado.
 - [RustDesk 1.4.9: tela de Segurança](https://github.com/rustdesk/rustdesk/blob/1.4.9/flutter/lib/desktop/pages/desktop_setting_page.dart)
 - [RustDesk 1.4.9: definição de senha por IPC](https://github.com/rustdesk/rustdesk/blob/1.4.9/flutter/lib/desktop/pages/desktop_home_page.dart)
 - [RustDesk 1.4.9: identidade do MSI](https://github.com/rustdesk/rustdesk/blob/1.4.9/res/msi/preprocess.py)
+- [Armazenamento de senha no hbb_common fixado](https://github.com/rustdesk/hbb_common/blob/7e1c392c62d39c364127307cd408421dd5f8cfb0/src/config.rs)
+- [IPC e ACK de gravação](https://github.com/rustdesk/rustdesk/blob/1.4.9/src/ipc.rs)
 - [Configurações avançadas oficiais](https://rustdesk.com/docs/en/self-host/client-configuration/advanced-settings/)
 
 Documentação online pode descrever versões posteriores; para comandos e pontos
