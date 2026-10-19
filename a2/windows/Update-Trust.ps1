@@ -96,7 +96,7 @@ function Assert-A2Manifest($Manifest, [string]$Product, [string]$Channel, [strin
     if ($created -gt $now.AddMinutes(5) -or $expires -le $now -or
         $expires -le $created -or ($expires - $created).TotalDays -gt 31) { throw 'Invalid release lifetime' }
     if ($Manifest.sha256 -notmatch '^[a-fA-F0-9]{64}$' -or
-        $Manifest.size -isnot [long] -and $Manifest.size -isnot [int]) { throw 'Invalid artifact integrity fields' }
+        ($Manifest.size -isnot [long] -and $Manifest.size -isnot [int])) { throw 'Invalid artifact integrity fields' }
     if ($Manifest.size -le 0 -or $Manifest.size -gt 2GB) { throw 'Invalid artifact size' }
     if ($Manifest.minWindowsBuild -isnot [int] -and $Manifest.minWindowsBuild -isnot [long]) { throw 'Invalid Windows build' }
     if ($Manifest.minWindowsBuild -lt 10240) { throw 'Unsupported Windows minimum' }

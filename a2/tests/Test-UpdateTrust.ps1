@@ -30,6 +30,8 @@ $expired = $valid.Clone(); $expired.expiresAt = [DateTimeOffset]::UtcNow.AddDays
 Reject { Assert-A2Manifest ([pscustomobject]$expired) 'Connect' 'beta' 'x86_64' 11 }
 $badHash = $valid.Clone(); $badHash.sha256 = 'bad'
 Reject { Assert-A2Manifest ([pscustomobject]$badHash) 'Connect' 'beta' 'x86_64' 11 }
+$badSize = $valid.Clone(); $badSize.size = '1024'
+Reject { Assert-A2Manifest ([pscustomobject]$badSize) 'Connect' 'beta' 'x86_64' 11 }
 Reject { Test-A2ManifestSignature ([byte[]]@(1,2)) ([byte[]]@(3,4)) ('A' * 64) }
 # Exercise a valid detached CMS signature using an ephemeral CI-only certificate.
 $cert = New-SelfSignedCertificate -Subject 'CN=A2 CI Test Only' -Type CodeSigningCert -CertStoreLocation 'Cert:\CurrentUser\My'
