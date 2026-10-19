@@ -1,0 +1,47 @@
+name: A2 preview UI typecheck
+on:
+  workflow_dispatch:
+    inputs:
+      bridge_run:
+        description: 'Run containing the RustDesk 1.4.9 bridge-artifact'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  typecheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: generator
+      - uses: actions/checkout@v4
+        with:
+          repository: rustdesk/rustdesk
+          ref: refs/tags/1.4.9
+          path: client
+      - uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          run-id: ${{ inputs.bridge_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: client
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          cache: true
+      - name: Apply preview and existing texture renderer compatibility
+        working-directory: client
+        env:
+          A2_PROFILE: client
+          A2_UNATTENDED_CONTROLS: 'true'
+        run: |
+          python ../generator/.github/patches/a2_unattended.py
+          sed -i 's/2ded7f146437a761ffe6981e2f742038f85ca68d/08a471bb8ceccdd50483c81cdfa8b81b07b14b87/g' flutter/pubspec.yaml flutter/pubspec.lock
+      - name: Resolve dependencies
+        working-directory: client/flutter
+        run: flutter pub get
+      - name: Check preview types
+        working-directory: client/flutter
+        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings lib/desktop/pages/desktop_setting_page.dart
