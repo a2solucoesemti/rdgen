@@ -34,7 +34,7 @@ def apply(root):
           final status = calloc<a2win32.SERVICE_STATUS>();
           try {
             return a2win32.QueryServiceStatus(service, status) != 0 &&
-                status.ref.dwCurrentState == a2win32.SERVICE_RUNNING;
+                status.ref.dwCurrentState == 0x00000004; // SERVICE_RUNNING (winsvc.h)
           } finally { calloc.free(status); }
         } finally { a2win32.CloseServiceHandle(service); }
       } finally { calloc.free(name); }
