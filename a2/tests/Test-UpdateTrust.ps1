@@ -4,7 +4,7 @@ $script:count = 0
 function Reject([scriptblock]$Action) {
     $failed = $false
     try { & $Action } catch { $failed = $true }
-    if (-not $failed) { throw 'Unsafe input unexpectedly accepted' }
+    if (-not $failed) { throw "Unsafe input unexpectedly accepted at negative case $script:count : $Action" }
     $script:count++
 }
 $valid = @{
