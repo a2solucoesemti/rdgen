@@ -34,8 +34,9 @@ $badSize = $valid.Clone(); $badSize.size = '1024'
 Reject { Assert-A2Manifest ([pscustomobject]$badSize) 'Connect' 'beta' 'x86_64' 11 }
 Reject { Test-A2ManifestSignature ([byte[]]@(1,2)) ([byte[]]@(3,4)) ('A' * 64) }
 # Exercise a valid detached CMS signature using an ephemeral CI-only certificate.
+if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Run CMS integration tests only on isolated CI' }
 $cert = New-SelfSignedCertificate -Subject 'CN=A2 CI Test Only' -Type CodeSigningCert -CertStoreLocation 'Cert:\CurrentUser\My'
-$store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'CurrentUser')
+$store = [Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
 try {
     $store.Open('ReadWrite'); $store.Add($cert)
     $content = [Text.Encoding]::UTF8.GetBytes('signed A2 test content')
