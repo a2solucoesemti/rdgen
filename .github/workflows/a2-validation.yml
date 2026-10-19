@@ -40,3 +40,19 @@ jobs:
             if ($errors.Count) { throw ($errors | Out-String) }
           }
           & ./a2/tests/Test-UpdateTrust.ps1
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          cache: true
+      - name: Exercise native Windows service query without changing services
+        shell: pwsh
+        run: |
+          python a2/tests/service_query_fixture.py "$env:RUNNER_TEMP/a2-service-query"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract the preview query helper' }
+          Push-Location "$env:RUNNER_TEMP/a2-service-query"
+          try {
+            dart pub get
+            if ($LASTEXITCODE -ne 0) { throw 'Could not resolve query test dependencies' }
+            dart run service_query.dart
+            if ($LASTEXITCODE -ne 0) { throw 'Native service query failed' }
+          } finally { Pop-Location }
