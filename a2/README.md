@@ -184,14 +184,16 @@ anteriores. Mudanças em fontes/assets só aparecem em novos EXE/MSI compilados.
 
 ### Identidade dos ícones e SmartScreen
 
-A revisão visual usa o monograma a2 em Poppins SemiBold, somente preto e branco,
-na bandeja e no aplicativo. Não usa azul, verde ou teal. As fontes SVG e os ICOs ficam em `.github/assets/connect/windows/`.
-Para regenerar os contornos, instalar fonttools e executar `python a2/tools/make_poppins_monogram.py`.
-A fonte original e sua licença OFL estão em `.github/assets/connect/fonts/`.
-Depois, com ImageMagick 7, executar `python a2/tools/generate_windows_icons.py`.
-Os contornos são incorporados aos recursos: não é necessário instalar Poppins no Windows do cliente.
-Os arquivos incluem quadros de 16/20/24/32/48/64 pixels; o executável inclui também
-128/256. Conferir a renderização real no Windows após compilar.
+A fonte visual autoritativa é agora o PNG oficial enviado pelo responsável,
+armazenado sem alteração em `.github/assets/connect/official/logo-original.png`.
+`logo-sem-legenda.png` é um recorte dos primeiros 160 pixels de altura, retirando
+somente a legenda inferior. O desenho original das letras não é refeito com fonte
+nem imagem gerada. A versão gerada e os monogramas reconstruídos foram rejeitados.
+
+Para regenerar os PNG/ICO, executar `python a2/tools/generate_windows_icons.py`
+com ImageMagick 7. A proporção horizontal original é mantida e centralizada com
+espaço transparente nos recursos quadrados. Os wrappers SVG incorporam o recorte
+oficial; não contêm letras redesenhadas. Conferir a renderização no Windows.
 
 Assinatura não garante ausência de SmartScreen: certificados OV e EV exibem o
 publicador validado, mas novos binários ainda podem gerar avisos até acumular
