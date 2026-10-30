@@ -1,7 +1,7 @@
 /// Called only by the elevated, installed Connect executable. Never receives a password.
 pub fn a2_set_unattended_consent(enabled: bool) -> ResultType<()> {
     use std::os::windows::ffi::OsStrExt;
-    use winapi::um::{sddl::ConvertStringSecurityDescriptorToSecurityDescriptorW, winnt::*};
+    use winapi::{shared::sddl::ConvertStringSecurityDescriptorToSecurityDescriptorW, um::winnt::*};
     if !is_elevated(None).unwrap_or(false) {
         bail!("Administrative consent is required");
     }
@@ -52,7 +52,7 @@ pub fn a2_set_unattended_consent(enabled: bool) -> ResultType<()> {
         unsafe { winapi::um::winbase::LocalFree(descriptor as _); }
         return Err(std::io::Error::from_raw_os_error(created).into());
     }
-    let key = unsafe { RegKey::from_raw_hkey(raw_key as _) };
+    let key = RegKey::predef(raw_key as _);
     // Apply the same protected policy to an existing key, without a permissive creation window.
     let result = unsafe {
         winapi::um::winreg::RegSetKeySecurity(key.raw_handle() as _,
@@ -82,7 +82,7 @@ fn a2_prepare_unattended_service() -> ResultType<()> {
         }
         let mut status: SERVICE_STATUS = std::mem::zeroed();
         let running = QueryServiceStatus(service, &mut status) != 0 && status.dwCurrentState == SERVICE_RUNNING;
-        let changed = running && ChangeServiceConfigW(service, SERVICE_NO_CHANGE, SERVICE_AUTO_START,
+        let changed = running && ChangeServiceConfigW(service, SERVICE_NO_CHANGE, winapi::um::winnt::SERVICE_AUTO_START,
             SERVICE_NO_CHANGE, std::ptr::null(), std::ptr::null(), std::ptr::null_mut(),
             std::ptr::null(), std::ptr::null(), std::ptr::null(), std::ptr::null()) != 0;
         let error = std::io::Error::last_os_error();
