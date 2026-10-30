@@ -202,3 +202,12 @@ distribuir pelo domínio oficial HTTPS. Não modificar arquivos depois de assina
 Certificado SSL de site não substitui certificado de assinatura de código.
 
 Fonte: [Microsoft — SmartScreen reputation for Windows app developers](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation).
+
+## Compilação local Windows
+
+A receita x64 independente do Actions fica em [local/README.md](local/README.md).
+Os atalhos `PREPARAR-WINDOWS.cmd` e `COMPILAR-CONNECT.cmd` estão na raiz do
+repositório. A preparação usa configuração pública A2 e não requer secrets da
+pipeline. Não instala o Connect, não altera serviços e não publica atualizações.
+A preparação dos fontes e o parser foram verificados; o build Windows completo
+ainda será executado no notebook.

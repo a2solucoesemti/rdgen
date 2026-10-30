@@ -1,3 +1,10 @@
+## Compilar o Connect no notebook Windows
+
+O pacote local x64 não depende do GitHub Actions. Use **PREPARAR-WINDOWS.cmd**
+e depois **COMPILAR-CONNECT.cmd**. Instruções e limitações em
+[a2/local/README.md](a2/local/README.md). A execução completa da compilação ainda
+precisa ser validada no Windows; os instaladores locais são previews.
+
 # RDGen, a RustDesk client generator to use with your self-hosted RustDesk server
 
 ## A2 Connect
