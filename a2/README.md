@@ -181,3 +181,20 @@ Os recursos de ícone do cliente ficam em `.github/assets/connect/windows/`.
 O carregamento Windows da bandeja usa o ICO próprio para pequenos tamanhos,
 em vez de reduzir o PNG grande do aplicativo. ConnectAdmin mantém seus recursos
 anteriores. Mudanças em fontes/assets só aparecem em novos EXE/MSI compilados.
+
+### Identidade dos ícones e SmartScreen
+
+A revisão visual usa o monograma a2, com versão branca para a bandeja e branco/teal
+para o aplicativo. As fontes SVG e os ICOs ficam em `.github/assets/connect/windows/`.
+Para regenerar, instalar ImageMagick 7 e executar `python a2/tools/generate_windows_icons.py`.
+Os arquivos incluem quadros de 16/20/24/32/48/64 pixels; o executável inclui também
+128/256. Conferir a renderização real no Windows após compilar.
+
+Assinatura não garante ausência de SmartScreen: certificados OV e EV exibem o
+publicador validado, mas novos binários ainda podem gerar avisos até acumular
+reputação. EV não concede dispensa imediata. Usar a identidade A2 consistente,
+assinar os arquivos finais com timestamp, verificar depois de empacotar e
+distribuir pelo domínio oficial HTTPS. Não modificar arquivos depois de assinados.
+Certificado SSL de site não substitui certificado de assinatura de código.
+
+Fonte: [Microsoft — SmartScreen reputation for Windows app developers](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation).
