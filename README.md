@@ -1,4 +1,20 @@
+## Compilar o Connect no notebook Windows
+
+O pacote local x64 não depende do GitHub Actions. Use **PREPARAR-WINDOWS.cmd**
+e depois **COMPILAR-CONNECT.cmd**. Instruções e limitações em
+[a2/local/README.md](a2/local/README.md). A execução completa da compilação ainda
+precisa ser validada no Windows; os instaladores locais são previews.
+
 # RDGen, a RustDesk client generator to use with your self-hosted RustDesk server
+
+## A2 Connect
+
+A documentação da implementação A2 está em [a2/README.md](a2/README.md).
+O [roteiro da equipe](a2/docs/ROTEIRO-EQUIPE.md) cobre instalação, acesso permanente
+por serviço e preservação de ID/credenciais. As alterações de acesso permanente
+estão em preview; atualização automática com instalação/rollback ainda não foi
+liberada.
+
 
 The client generator is currently hosted [here](https://rdgen.crayoneater.org).
 If you would like to host the generator yourself, see [here](setup.md)

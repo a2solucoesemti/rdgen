@@ -1,0 +1,88 @@
+name: A2 policy and update trust validation
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['a2/**', '.github/patches/a2_*', '.github/workflows/a2-validation.yml', '.github/workflows/generator-windows.yml']
+permissions:
+  contents: read
+jobs:
+  profiles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check patch against pinned upstream source
+        run: |
+          mkdir -p /tmp/a2-fixture/flutter/lib/desktop/pages
+          curl --fail --location --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/rustdesk/rustdesk/1.4.9/flutter/lib/desktop/pages/desktop_setting_page.dart -o /tmp/a2-settings.dart
+          A2_UPSTREAM_SETTINGS=/tmp/a2-settings.dart python -m unittest discover -s a2/tests -v
+          cp /tmp/a2-settings.dart /tmp/a2-fixture/flutter/lib/desktop/pages/desktop_setting_page.dart
+          cd /tmp/a2-fixture
+          A2_PROFILE=client A2_UNATTENDED_CONTROLS=true python "$GITHUB_WORKSPACE/.github/patches/a2_unattended.py"
+      - name: Verify portable startup patch against pinned upstream
+        run: |
+          mkdir -p /tmp/a2-portable/flutter/lib/desktop/pages /tmp/a2-portable/src
+          for path in flutter/lib/desktop/pages/desktop_home_page.dart flutter/lib/desktop/pages/connection_page.dart src/tray.rs; do
+            curl --fail --location --proto '=https' --tlsv1.2 "https://raw.githubusercontent.com/rustdesk/rustdesk/1.4.9/$path" -o "/tmp/a2-portable/$path"
+          done
+          A2_PORTABLE_FIXTURE=/tmp/a2-portable python -m unittest discover -s a2/tests -p test_portable_patch.py -v
+      - name: Verify native patch against pinned upstream
+        run: |
+          mkdir -p /tmp/a2-native/libs/hbb_common/src /tmp/a2-native/src/platform
+          for path in src/core_main.rs src/flutter_ffi.rs src/ipc.rs src/platform/windows.rs; do
+            curl --fail --location --proto '=https' --tlsv1.2 "https://raw.githubusercontent.com/rustdesk/rustdesk/1.4.9/$path" -o "/tmp/a2-native/$path"
+          done
+          for path in src/config.rs Cargo.toml; do
+            curl --fail --location --proto '=https' --tlsv1.2 "https://raw.githubusercontent.com/rustdesk/hbb_common/7e1c392c62d39c364127307cd408421dd5f8cfb0/$path" -o "/tmp/a2-native/libs/hbb_common/$path"
+          done
+          python a2/tests/check_native_patch.py /tmp/a2-native
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          cache: true
+      - name: Parse generated Dart
+        run: dart format --output=none /tmp/a2-fixture/flutter/lib/desktop/pages/desktop_setting_page.dart
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: '1.75'
+      - name: Verify native authentication policy
+        run: |
+          rustc --edition=2021 --test .github/patches/a2_auth_policy.rs -o /tmp/a2-auth-policy-tests
+          /tmp/a2-auth-policy-tests
+  windows-trust:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse PowerShell and run trust tests
+        shell: powershell
+        run: |
+          Get-ChildItem a2 -Recurse -Filter *.ps1 | ForEach-Object {
+            $tokens = $null; $errors = $null
+            $null = [Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }
+          & ./a2/tests/Test-UpdateTrust.ps1
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          cache: true
+      - name: Exercise native Windows service query without changing services
+        shell: pwsh
+        run: |
+          python a2/tests/service_query_fixture.py "$env:RUNNER_TEMP/a2-service-query"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract the preview query helper' }
+          Push-Location "$env:RUNNER_TEMP/a2-service-query"
+          try {
+            dart pub get
+            if ($LASTEXITCODE -ne 0) { throw 'Could not resolve query test dependencies' }
+            dart run service_query.dart
+            if ($LASTEXITCODE -ne 0) { throw 'Native service query failed' }
+          } finally { Pop-Location }
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: '1.75'
+      - name: Exercise administrative consent on an isolated service fixture
+        shell: powershell
+        run: ./a2/tests/Test-NativeConsent.ps1
