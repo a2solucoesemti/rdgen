@@ -1,8 +1,8 @@
 """Package the supplied official A2 logo without recreating its lettering.
 
-Requires ImageMagick 7. The original PNG is kept unchanged. Only the bottom
-40 rows containing the tagline are cropped. Icons preserve the mark's aspect
-ratio, with transparent padding to make square Windows resources.
+Requires ImageMagick 7. The latest user-supplied PNG is kept unchanged.
+Icons preserve its aspect ratio, with transparent padding to make square
+Windows resources. No cropping or reconstructed lettering is applied.
 """
 from pathlib import Path
 import subprocess
@@ -18,13 +18,11 @@ def magick(*args):
 
 
 def render(size, destination):
-    magick(OFFICIAL / 'logo-sem-legenda.png', '-resize', f'{size}x{size}',
+    magick(OFFICIAL / 'logo-aprovada.png', '-resize', f'{size}x{size}',
            '-background', 'none', '-gravity', 'center', '-extent', f'{size}x{size}', destination)
 
 
 def main():
-    magick(OFFICIAL / 'logo-original.png', '-crop', '300x160+0+0', '+repage',
-           OFFICIAL / 'logo-sem-legenda.png')
     render(256, ASSETS / 'icon.png')
     render(64, ASSETS / 'tray-icon.png')
     for name, size in [('32x32', 32), ('64x64', 64), ('128x128', 128), ('128x128@2x', 256)]:

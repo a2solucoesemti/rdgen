@@ -184,15 +184,14 @@ anteriores. Mudanças em fontes/assets só aparecem em novos EXE/MSI compilados.
 
 ### Identidade dos ícones e SmartScreen
 
-A fonte visual autoritativa é agora o PNG oficial enviado pelo responsável,
-armazenado sem alteração em `.github/assets/connect/official/logo-original.png`.
-`logo-sem-legenda.png` é um recorte dos primeiros 160 pixels de altura, retirando
-somente a legenda inferior. O desenho original das letras não é refeito com fonte
-nem imagem gerada. A versão gerada e os monogramas reconstruídos foram rejeitados.
+A fonte visual autoritativa é o último PNG enviado pelo responsável em 30/10/2026,
+`Design sem nome.png`, preservado em `.github/assets/connect/official/logo-aprovada.png`
+(108×72). O arquivo é usado diretamente, sem recorte nem reconstrução das letras.
+As fontes anteriores permanecem arquivadas, mas não alimentam a geração de ícones.
 
 Para regenerar os PNG/ICO, executar `python a2/tools/generate_windows_icons.py`
 com ImageMagick 7. A proporção horizontal original é mantida e centralizada com
-espaço transparente nos recursos quadrados. Os wrappers SVG incorporam o recorte
+espaço transparente nos recursos quadrados. Os wrappers SVG incorporam o PNG
 oficial; não contêm letras redesenhadas. Conferir a renderização no Windows.
 
 Assinatura não garante ausência de SmartScreen: certificados OV e EV exibem o
