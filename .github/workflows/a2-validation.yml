@@ -21,6 +21,13 @@ jobs:
           cp /tmp/a2-settings.dart /tmp/a2-fixture/flutter/lib/desktop/pages/desktop_setting_page.dart
           cd /tmp/a2-fixture
           A2_PROFILE=client A2_UNATTENDED_CONTROLS=true python "$GITHUB_WORKSPACE/.github/patches/a2_unattended.py"
+      - name: Verify portable startup patch against pinned upstream
+        run: |
+          mkdir -p /tmp/a2-portable/flutter/lib/desktop/pages /tmp/a2-portable/src
+          for path in flutter/lib/desktop/pages/desktop_home_page.dart flutter/lib/desktop/pages/connection_page.dart src/tray.rs; do
+            curl --fail --location --proto '=https' --tlsv1.2 "https://raw.githubusercontent.com/rustdesk/rustdesk/1.4.9/$path" -o "/tmp/a2-portable/$path"
+          done
+          A2_PORTABLE_FIXTURE=/tmp/a2-portable python -m unittest discover -s a2/tests -p test_portable_patch.py -v
       - name: Verify native patch against pinned upstream
         run: |
           mkdir -p /tmp/a2-native/libs/hbb_common/src /tmp/a2-native/src/platform

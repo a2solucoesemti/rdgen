@@ -103,3 +103,21 @@ Preencher uma cópia local desta tabela. Não incluir senhas nem arquivos TOML.
 Qualquer divergência de ID, servidor, senha ou permissões reprova a migração.
 Restaurar o snapshot para recuperação no laboratório; rollback automático ainda
 não foi implementado. Não promover esse preview ao canal stable ou server.
+
+## Cliente portátil — revisão de 30/10/2026
+
+- Ao abrir o EXE sem instalação, o atendimento é iniciado no contexto do usuário,
+  usando a rotina nativa. Não deve pedir clique em Iniciar serviço ou UAC só para
+  abrir. A aprovação da conexão pelo cliente continua obrigatória.
+- Testar também depois de usar Parar serviço no build antigo: reabrir o novo EXE
+  deve voltar a registrar o atendimento. Não deve criar serviço Windows.
+- O único botão de instalação continua sendo Instalar. Só a instalação permanente
+  e as funções que exigem elevação podem solicitar administração do Windows.
+- Fechar a janela e encerrar o aplicativo são operações diferentes no upstream;
+  conferir o comportamento da bandeja. Não presumir acesso após logout/reboot no
+  modo portátil.
+- Testar ícones da janela, barra de tarefas, bandeja e instalador em escala de
+  100%, 150% e 200%, em temas claro e escuro. Os ícones do cliente agora são
+  separados dos ícones do ConnectAdmin.
+- Na instalação existente, abrir o aplicativo não deve reparar, reinstalar ou
+  reativar automaticamente um serviço que o administrador tenha parado.

@@ -157,6 +157,7 @@ jobs:
       - name: Preserve a2 Windows UI patch
         shell: bash
         run: |
+          cp .github/patches/a2_portable.py "$RUNNER_TEMP/a2_portable.py"
           cp .github/patches/a2_consent.py "$RUNNER_TEMP/a2_consent.py"
           cp .github/patches/a2_auth_policy.rs "$RUNNER_TEMP/a2_auth_policy.rs"
           cp .github/patches/a2_consent_windows.rs "$RUNNER_TEMP/a2_consent_windows.rs"
@@ -166,7 +167,11 @@ jobs:
           cp a2/windows/Test-A2Signature.ps1 "$RUNNER_TEMP/Test-A2Signature.ps1"
           cp .github/patches/a2_connectadmin.py "$RUNNER_TEMP/a2_connectadmin.py"
           cp .github/patches/a2_windows_install_only.py "$RUNNER_TEMP/a2_windows_install_only.py"
-          cp -R .github/assets/connectadmin/windows "$RUNNER_TEMP/connectadmin-windows-assets"
+          if [ "${{ inputs.profile }}" = "client" ]; then
+            cp -R .github/assets/connect/windows "$RUNNER_TEMP/connectadmin-windows-assets"
+          else
+            cp -R .github/assets/connectadmin/windows "$RUNNER_TEMP/connectadmin-windows-assets"
+          fi
       
       - name: Set rdgen value
         if: ${{ env.rdgen == 'true' }}
@@ -430,7 +435,7 @@ jobs:
         shell: bash
         run: echo "SODIUM_LIB_DIR=$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}/lib" >> "$GITHUB_ENV"
           
-      - name: Install prebuilt ConnectAdmin Windows icons
+      - name: Install prebuilt A2 Windows icons
         if: ${{ env.iconlink_url != 'false' }}
         shell: pwsh
         run: |
@@ -438,6 +443,7 @@ jobs:
           Copy-Item "$assets/icon.png" "./res/icon.png" -Force
           Copy-Item "$assets/icon.ico" "./res/icon.ico" -Force
           Copy-Item "$assets/tray-icon.ico" "./res/tray-icon.ico" -Force
+          Copy-Item "$assets/tray-icon.ico" "./flutter/assets/tray-icon.ico" -Force
           Copy-Item "$assets/window-icon.ico" "./res/window-icon.ico" -Force
           Copy-Item "$assets/32x32.png" "./res/32x32.png" -Force
           Copy-Item "$assets/64x64.png" "./res/64x64.png" -Force
@@ -488,6 +494,7 @@ jobs:
         run: |
           export A2_PROFILE="${{ inputs.profile }}"
           python "$RUNNER_TEMP/a2_windows_install_only.py"
+          python "$RUNNER_TEMP/a2_portable.py"
           if [ "${{ inputs.profile }}" = "admin" ]; then
             export A2_APP_NAME="ConnectAdmin"
           else
@@ -524,6 +531,7 @@ jobs:
           Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/window-icon.ico" "./flutter/assets/window-icon.ico" -Force
           Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/icon.ico" "./res/icon.ico" -Force
           Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/tray-icon.ico" "./res/tray-icon.ico" -Force
+          Copy-Item "$env:RUNNER_TEMP/connectadmin-windows-assets/tray-icon.ico" "./flutter/assets/tray-icon.ico" -Force
 
       - name: Build rustdesk
         run: |

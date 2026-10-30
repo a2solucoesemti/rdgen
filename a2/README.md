@@ -169,3 +169,15 @@ certificado temporário somente no runner de CI isolado, nunca nos clientes.
 O [roteiro da equipe](docs/ROTEIRO-EQUIPE.md), o plano de testes completo e a
 arquitetura de inventário estão em `docs/`. A homologação será executada pela
 equipe no Windows de testes, conforme definido pelo responsável.
+
+## Cliente portátil e ícones Windows (30/10/2026)
+
+O perfil cliente inicia o atendimento ao abrir o portátil, sem instalar serviço
+Windows ou conceder acesso permanente. A rotina é executada uma vez ao abrir a
+página inicial e é bloqueada para instalações existentes. Se a inicialização
+falhar, o rodapé mantém o erro; não apresenta estado Pronto fictício.
+
+Os recursos de ícone do cliente ficam em `.github/assets/connect/windows/`.
+O carregamento Windows da bandeja usa o ICO próprio para pequenos tamanhos,
+em vez de reduzir o PNG grande do aplicativo. ConnectAdmin mantém seus recursos
+anteriores. Mudanças em fontes/assets só aparecem em novos EXE/MSI compilados.
